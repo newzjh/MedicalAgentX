@@ -579,6 +579,24 @@ function WorkList({
                   : undefined
               }
             />
+            <div className="flex justify-center gap-2 p-4">
+              <Button
+                type={ButtonEnums.type.primary}
+                size={ButtonEnums.size.smallTall}
+                onClick={() => navigate('/local')}
+                startIcon={<Icons.Upload />}
+              >
+                Load DICOM Files
+              </Button>
+              <Button
+                type={ButtonEnums.type.primary}
+                size={ButtonEnums.size.smallTall}
+                onClick={() => navigate('/local')}
+                startIcon={<Icons.Upload />}
+              >
+                Load NRRD Files
+              </Button>
+            </div>
           </div>
           {hasStudies ? (
             <div className="flex grow flex-col">
