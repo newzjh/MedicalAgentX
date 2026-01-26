@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import filtersMeta from './filtersMeta.js';
 import { useAppConfig } from '@state';
 import useWorkflowHistoryStore from '@state/useWorkflowHistoryStore';
-import { useDebounce, useSearchParams } from '../../hooks';
+import { useDebounce, useSearchParams, useOrientation } from '../../hooks';
 import { utils, Types as coreTypes } from '@ohif/core';
 
 import {
@@ -113,6 +113,9 @@ function WorkList({
     ...defaultFilterValues,
     ...sessionQueryFilterValues,
   });
+
+  // Screen orientation detection
+  const { isPortrait, isLandscape } = useOrientation();
 
   const debouncedFilterValues = useDebounce(filterValues, 200);
   const { resultsPerPage, pageNumber, sortBy, sortDirection } = filterValues;
@@ -541,64 +544,76 @@ function WorkList({
       );
     };
 
+    // Build row columns based on orientation
+    const rowColumns = [
+      {
+        key: 'patientName',
+        content: patientName ? makeCopyTooltipCell(patientName) : null,
+        gridCol: 4,
+      },
+      {
+        key: 'studyDate',
+        content: (
+          <>
+            {studyDate && <span className="mr-4">{studyDate}</span>}
+            {studyTime && <span>{studyTime}</span>}
+          </>
+        ),
+        title: `${studyDate || ''} ${studyTime || ''}`,
+        gridCol: 5,
+      },
+      {
+        key: 'modality',
+        content: modalities,
+        title: modalities,
+        gridCol: 3,
+      },
+      {
+        key: 'instances',
+        content: (
+          <>
+            <Icons.ViewportViews
+              className={classnames('mr-2 inline-flex w-4', {
+                'text-primary': isExpanded,
+                'text-secondary-light': !isExpanded,
+              })}
+            />
+            {instances}
+          </>
+        ),
+        title: (instances || 0).toString(),
+        gridCol: 2,
+      },
+    ];
+
+    // Add columns that are only shown in landscape mode
+    if (isLandscape) {
+      // Insert MRN column after patientName
+      rowColumns.splice(1, 0, {
+        key: 'mrn',
+        content: makeCopyTooltipCell(mrn),
+        gridCol: 3,
+      });
+
+      // Insert description column after studyDate
+      rowColumns.splice(3, 0, {
+        key: 'description',
+        content: makeCopyTooltipCell(description),
+        gridCol: 4,
+      });
+
+      // Insert accession column after modality
+      rowColumns.splice(5, 0, {
+        key: 'accession',
+        content: makeCopyTooltipCell(accession),
+        gridCol: 3,
+      });
+    }
+
     return {
       dataCY: `studyRow-${studyInstanceUid}`,
       clickableCY: studyInstanceUid,
-      row: [
-        {
-          key: 'patientName',
-          content: patientName ? makeCopyTooltipCell(patientName) : null,
-          gridCol: 4,
-        },
-        {
-          key: 'mrn',
-          content: makeCopyTooltipCell(mrn),
-          gridCol: 3,
-        },
-        {
-          key: 'studyDate',
-          content: (
-            <>
-              {studyDate && <span className="mr-4">{studyDate}</span>}
-              {studyTime && <span>{studyTime}</span>}
-            </>
-          ),
-          title: `${studyDate || ''} ${studyTime || ''}`,
-          gridCol: 5,
-        },
-        {
-          key: 'description',
-          content: makeCopyTooltipCell(description),
-          gridCol: 4,
-        },
-        {
-          key: 'modality',
-          content: modalities,
-          title: modalities,
-          gridCol: 3,
-        },
-        {
-          key: 'accession',
-          content: makeCopyTooltipCell(accession),
-          gridCol: 3,
-        },
-        {
-          key: 'instances',
-          content: (
-            <>
-              <Icons.ViewportViews
-                className={classnames('mr-2 inline-flex w-4', {
-                  'text-primary': isExpanded,
-                  'text-secondary-light': !isExpanded,
-                })}
-              />
-              {instances}
-            </>
-          ),
-          title: (instances || 0).toString(),
-          gridCol: 2,
-        },
-      ],
+      row: rowColumns,
       // Todo: This is actually running for all rows, even if they are
       // not clicked on.
       expandedContent: (
@@ -840,10 +855,13 @@ function WorkList({
             <Tabs value={activeTab} onValueChange={setActiveTab}>
 
               {/* Study List Tab */}
-              <TabsContent value="studies" className="flex grow flex-col" preventScroll>
+              <TabsContent value="studies" className="flex grow flex-col">
                 <StudyListFilter
                   numOfStudies={pageNumber * resultsPerPage > 100 ? 101 : numOfStudies}
-                  filtersMeta={filtersMeta}
+                  filtersMeta={isLandscape ? filtersMeta : filtersMeta.filter(filter => {
+                    // Hide MRN, Description, and Accession columns in portrait mode
+                    return !['mrn', 'description', 'accession'].includes(filter.name);
+                  })}
                   filterValues={{ ...filterValues, ...defaultSortValues }}
                   onChange={setFilterValues}
                   clearFilters={() => setFilterValues(defaultFilterValues)}
@@ -902,7 +920,7 @@ function WorkList({
               </TabsContent>
 
               {/* AI Assistant Tab */}
-              <TabsContent value="assistant" className="flex grow flex-col p-4" preventScroll>
+              <TabsContent value="assistant" className="flex grow flex-col p-4">
                 <AIAssistant
                   session={currentSession || undefined}
                   onSessionUpdate={handleSessionUpdate}
@@ -910,7 +928,7 @@ function WorkList({
               </TabsContent>
 
               {/* Workflow Tab */}
-              <TabsContent value="workflow" className="flex grow flex-col p-4" preventScroll>
+              <TabsContent value="workflow" className="flex grow flex-col p-4">
                 <WorkflowHistory
                   workflowHistory={workflowHistory}
                   onClearHistory={clearWorkflowHistory}
@@ -918,7 +936,7 @@ function WorkList({
               </TabsContent>
 
               {/* Consultation Tab */}
-              <TabsContent value="consultation" className="flex grow flex-col p-4" preventScroll>
+              <TabsContent value="consultation" className="flex grow flex-col p-4">
                 <DoctorList onDoctorSelect={handleDoctorSelect} onTabChange={setActiveTab} />
               </TabsContent>
             </Tabs>

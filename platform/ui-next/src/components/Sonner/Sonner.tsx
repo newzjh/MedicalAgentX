@@ -15,7 +15,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
         success: <Icons.StatusSuccess />,
         error: <Icons.StatusError />,
       }}
-      theme="dark"
+      theme="light"
       richColors="true"
       toastOptions={{
         style: {
