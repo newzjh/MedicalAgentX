@@ -14,9 +14,10 @@ function AboutModalDefault() {
 
   return (
     <AboutModal className="w-[400px]">
-      <AboutModal.ProductName>OHIF Viewer</AboutModal.ProductName>
+      <AboutModal.ProductName>多维智能医学影像智能体</AboutModal.ProductName>
       <AboutModal.ProductVersion>{main}</AboutModal.ProductVersion>
       {beta && <AboutModal.ProductBeta>{beta}</AboutModal.ProductBeta>}
+      <div className="text-muted-foreground text-sm mt-2">based on OHIF Viewer</div>
 
       <AboutModal.Body>
         <AboutModal.DetailItem

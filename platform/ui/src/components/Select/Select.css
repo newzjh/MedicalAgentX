@@ -1,9 +1,9 @@
 .customSelect__wrapper .customSelect__control {
-  @apply border-secondary-light w-full rounded border bg-black text-sm leading-tight text-white shadow transition duration-300;
+  @apply border-gray-300 w-full rounded border bg-white text-sm leading-tight text-gray-900 shadow transition duration-300;
   min-height: 28px;
 }
 .customSelect__wrapper .customSelect__control:hover {
-  @apply border-gray-500;
+  @apply border-gray-400;
 }
 
 .customSelect__control {
@@ -16,14 +16,14 @@
 }
 
 .customSelect__input {
-  @apply text-white !important;
+  @apply text-gray-900 !important;
   font-size: 0.75rem !important;
   line-height: 1.25 !important;
 }
 
 .customSelect__wrapper .customSelect__control:focus,
 .customSelect__wrapper .customSelect__control--menu-is-open {
-  @apply border-gray-500 outline-none;
+  @apply border-primary outline-none;
 }
 
 .customSelect--is-disabled .customSelect__control--is-disabled {
@@ -43,7 +43,7 @@
 }
 
  .customSelect__option {
-  color: #d6d6d6 !important;
+  color: #333333 !important;
   font-size: 14px !important;
   display: flex !important;
   align-items: center !important;
@@ -55,7 +55,7 @@
 }
 
 .customSelect__wrapper .customSelect__single-value {
-  @apply text-aqua-pale pl-1;
+  @apply text-gray-900 pl-1;
   max-width: calc(100% - 20px);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
   border-radius: 10px;
 }
 .customSelect__menu-portal .customSelect__placeholder {
-  @apply text-aqua-pale pl-1.5;
+  @apply text-gray-500 pl-1.5;
 }
 
 .customSelect__menu-portal .customSelect__menu-list::-webkit-scrollbar-thumb {
@@ -95,17 +95,17 @@
 }
 
 .customSelect__option--is-focused {
-  background-color: #0944b391 !important;
+  background-color: rgba(9, 68, 179, 0.1) !important;
 }
 
 .customSelect__menu-portal .customSelect__option:hover {
-  background-color: #0944b391;
+  background-color: rgba(9, 68, 179, 0.1);
 }
 
 .customSelect__menu-portal .customSelect__menu {
   border: 2px solid #0944b3;
   border-radius: 6px;
-  background-color: #151515 !important;
+  background-color: white !important;
 }
 
 .css-1hwfws3 {

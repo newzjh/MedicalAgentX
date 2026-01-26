@@ -20,7 +20,7 @@ const WorkflowHistory: React.FC<WorkflowHistoryProps> = ({ workflowHistory, onCl
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col h-full text-white">
+    <div className="flex flex-col h-full text-gray-900">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">{t('WorkList:Workflow History')}</h2>
         <Button
@@ -35,7 +35,7 @@ const WorkflowHistory: React.FC<WorkflowHistoryProps> = ({ workflowHistory, onCl
       </div>
       {workflowHistory.length === 0 ? (
         <div className="flex flex-col items-center justify-center flex-grow text-gray-400">
-          <Icons.StatusTracking className="mb-4 h-16 w-16" />
+          <Icons.StatusTracking className="mb-4 h-16 w-16 text-gray-400" />
           <p>{t('WorkList:No workflow history yet')}</p>
         </div>
       ) : (
@@ -44,7 +44,7 @@ const WorkflowHistory: React.FC<WorkflowHistoryProps> = ({ workflowHistory, onCl
             {workflowHistory.map((item, index) => {
               const IconComponent = item.iconName && Icons[item.iconName] ? Icons[item.iconName] : null;
               return (
-                <div key={index} className="rounded-lg bg-gray-800 p-4 hover:bg-gray-700 transition-colors">
+                <div key={index} className="rounded-lg bg-gray-100 p-4 hover:bg-gray-200 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center">
                       {IconComponent && <IconComponent className="mr-2 h-4 w-4 text-primary" />}
@@ -52,7 +52,7 @@ const WorkflowHistory: React.FC<WorkflowHistoryProps> = ({ workflowHistory, onCl
                     </div>
                     <span className="text-xs text-gray-500">{item.timestamp}</span>
                   </div>
-                  <p className="text-sm text-gray-400">{item.description}</p>
+                  <p className="text-sm text-gray-600">{item.description}</p>
                 </div>
               );
             })}

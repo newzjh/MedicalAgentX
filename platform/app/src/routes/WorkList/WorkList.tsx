@@ -398,9 +398,9 @@ function WorkList({
 
   // Set body style
   useEffect(() => {
-    document.body.classList.add('bg-black');
+    document.body.classList.add('bg-white');
     return () => {
-      document.body.classList.remove('bg-black');
+      document.body.classList.remove('bg-white');
     };
   }, []);
 
@@ -738,7 +738,7 @@ function WorkList({
       onClick: () =>
         show({
           content: AboutModal,
-          title: AboutModal?.title ?? t('AboutModal:About OHIF Viewer'),
+          title: AboutModal?.title ?? '多维智能医学影像智能体',
           containerClassName: AboutModal?.containerClassName ?? 'max-w-md',
         }),
     },
@@ -802,7 +802,7 @@ function WorkList({
   );
 
   return (
-    <div className="flex h-screen flex-col bg-black">
+    <div className="flex h-screen flex-col bg-white">
       <Header
         isSticky
         menuOptions={menuOptions}
@@ -812,19 +812,19 @@ function WorkList({
         Secondary={
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="h-7 bg-transparent">
-              <TabsTrigger value="studies" className="text-xs px-2 py-0.5">
+              <TabsTrigger value="studies" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.TabStudies className="mr-1 h-3 w-3" />
                 {t('StudyList:Study List')}
               </TabsTrigger>
-              <TabsTrigger value="assistant" className="text-xs px-2 py-0.5">
+              <TabsTrigger value="assistant" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.Info className="mr-1 h-3 w-3" />
                 {t('WorkList:AI Assistant')}
               </TabsTrigger>
-              <TabsTrigger value="workflow" className="text-xs px-2 py-0.5">
+              <TabsTrigger value="workflow" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.StatusTracking className="mr-1 h-3 w-3" />
                 {t('WorkList:Workflow')}
               </TabsTrigger>
-              <TabsTrigger value="consultation" className="text-xs px-2 py-0.5">
+              <TabsTrigger value="consultation" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.MultiplePatients className="mr-1 h-3 w-3" />
                 {t('WorkList:Consultation')}
               </TabsTrigger>
@@ -893,7 +893,7 @@ function WorkList({
                 ) : (
                   <div className="flex flex-col items-center justify-center pt-48">
                     {appConfig.showLoadingIndicator && isLoadingData ? (
-                      <LoadingIndicatorProgress className={'h-full w-full bg-black'} />
+                      <LoadingIndicatorProgress className={'h-full w-full bg-white'} />
                     ) : (
                       <EmptyStudies />
                     )}
@@ -919,7 +919,7 @@ function WorkList({
 
               {/* Consultation Tab */}
               <TabsContent value="consultation" className="flex grow flex-col p-4" preventScroll>
-                <DoctorList onDoctorSelect={handleDoctorSelect} />
+                <DoctorList onDoctorSelect={handleDoctorSelect} onTabChange={setActiveTab} />
               </TabsContent>
             </Tabs>
           </div>

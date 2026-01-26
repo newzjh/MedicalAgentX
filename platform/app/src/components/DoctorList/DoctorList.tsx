@@ -13,14 +13,22 @@ interface Doctor {
 
 interface DoctorListProps {
   onDoctorSelect: (doctor: Doctor) => void;
+  onTabChange: (tabName: string) => void;
 }
 
-const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect }) => {
+const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect, onTabChange }) => {
   const { t } = useTranslation();
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
 
   // 模拟医生数据
   const doctors: Doctor[] = [
+    {
+      id: 'ai',
+      name: 'AI智能体',
+      hospital: 'AI诊断中心',
+      department: '人工智能',
+      description: '基于深度学习的医学影像诊断助手，能够快速分析多种影像数据，提供辅助诊断建议。'
+    },
     {
       id: '1',
       name: '张医生',
@@ -61,6 +69,11 @@ const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect }) => {
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     onDoctorSelect(doctor);
+    
+    // 如果选中的是AI智能体，切换到AI Assistant选项卡
+    if (doctor.id === 'ai') {
+      onTabChange('assistant');
+    }
   };
 
   const handleInvite = () => {
