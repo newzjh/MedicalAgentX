@@ -10,37 +10,46 @@ import { extensionManager } from '../../App';
 
 import { Button, Icons } from '@ohif/ui-next';
 
-const getLoadButton = (onDrop, text, isDir) => {
+const getLoadButton = (onDrop, text, isDir, ref) => {
   return (
     <Dropzone
       onDrop={onDrop}
       noDrag
     >
-      {({ getRootProps, getInputProps }) => (
-        <div {...getRootProps()}>
-          <Button
-            variant="default"
-            className="w-28"
-            disabled={false}
-            onClick={() => {}}
-          >
-            {text}
-            {isDir ? (
-              <input
-                {...getInputProps()}
-                webkitdirectory="true"
-                mozdirectory="true"
-                style={{ display: 'none' }}
-              />
-            ) : (
-              <input
-                {...getInputProps()}
-                style={{ display: 'none' }}
-              />
-            )}
-          </Button>
-        </div>
-      )}
+      {({ getRootProps, getInputProps }) => {
+        // Get input props without ref
+        const inputProps = getInputProps();
+        // Remove ref from input props to avoid overriding our ref
+        delete inputProps.ref;
+
+        return (
+          <div {...getRootProps()}>
+            <Button
+              variant="default"
+              className="w-28"
+              disabled={false}
+              onClick={() => {}}
+            >
+              {text}
+              {isDir ? (
+                <input
+                  ref={ref}
+                  {...inputProps}
+                  webkitdirectory="true"
+                  mozdirectory="true"
+                  style={{ display: 'none' }}
+                />
+              ) : (
+                <input
+                  ref={ref}
+                  {...inputProps}
+                  style={{ display: 'none' }}
+                />
+              )}
+            </Button>
+          </div>
+        );
+      }}
     </Dropzone>
   );
 };
@@ -55,8 +64,31 @@ function Local({ modePath }: LocalProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fileType = searchParams.get('type') || 'dicom';
+  const action = searchParams.get('action');
   const dropzoneRef = useRef();
+  const fileInputRef = useRef();
+  const folderInputRef = useRef();
   const [dropInitiated, setDropInitiated] = React.useState(false);
+
+  // Auto-click the corresponding button based on URL parameter
+  useEffect(() => {
+    const autoClickButton = () => {
+      if (action === 'loadFile' && fileInputRef.current) {
+        fileInputRef.current.click();
+      } else if (action === 'loadFolder' && folderInputRef.current) {
+        folderInputRef.current.click();
+      }
+    };
+
+    // Try to click immediately
+    autoClickButton();
+
+    // If refs are not ready, try again after a short delay
+    if ((action === 'loadFile' && !fileInputRef.current) || (action === 'loadFolder' && !folderInputRef.current)) {
+      const timer = setTimeout(autoClickButton, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [action]);
 
   const LoadingIndicatorProgress = customizationService.getCustomization(
     'ui.loadingIndicatorProgress'
@@ -158,8 +190,8 @@ function Local({ modePath }: LocalProps) {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-primary pt-0 text-xl">
-                      {fileType === 'dicom' 
-                        ? 'Drag and drop your DICOM files & folders here <br /> to load them locally.' 
+                      {fileType === 'dicom'
+                        ? 'Drag and drop your DICOM files & folders here <br /> to load them locally.'
                         : 'Drag and drop your medical image files here to load them locally.'}
                     </p>
                     <p className="text-muted-foreground text-base">
@@ -172,11 +204,11 @@ function Local({ modePath }: LocalProps) {
               <div className="flex justify-center gap-2 pt-4">
                 {fileType === 'dicom' ? (
                   <>
-                    {getLoadButton(onDrop, 'Load files', false)}
-                    {getLoadButton(onDrop, 'Load folders', true)}
+                    {getLoadButton(onDrop, 'Load files', false, fileInputRef)}
+                    {getLoadButton(onDrop, 'Load folders', true, folderInputRef)}
                   </>
                 ) : (
-                  getLoadButton(onDrop, 'Load Files', false)
+                  getLoadButton(onDrop, 'Load Files', false, fileInputRef)
                 )}
               </div>
             </div>

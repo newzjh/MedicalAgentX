@@ -1111,7 +1111,7 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local?type=dicom')}
+                    onClick={() => navigate('/local?type=dicom&action=loadFolder')}
                     startIcon={<Icons.Upload />}
                   >
                     Load DICOM Files
@@ -1119,7 +1119,7 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local?type=files')}
+                    onClick={() => navigate('/local?type=dicom&action=loadFile')}
                     startIcon={<Icons.Upload />}
                   >
                     Load Files
@@ -1168,7 +1168,7 @@ function WorkList({
                         console.log('[WorkList] 点击Load DICOM按钮 - 当前会话ID:', currentSession.id);
                         console.log('[WorkList] 点击Load DICOM按钮 - 当前关联影像:', currentSession.associatedImage);
                       }
-                      navigate('/local?type=dicom');
+                      navigate('/local?type=dicom&action=loadFolder');
                     }}
                     startIcon={<Icons.Upload />}
                   >
@@ -1185,7 +1185,7 @@ function WorkList({
                         console.log('[WorkList] 点击Load Files按钮 - 当前会话ID:', currentSession.id);
                         console.log('[WorkList] 点击Load Files按钮 - 当前关联影像:', currentSession.associatedImage);
                       }
-                      navigate('/local?type=files');
+                      navigate('/local?type=dicom&action=loadFile');
                     }}
                     startIcon={<Icons.Upload />}
                   >
