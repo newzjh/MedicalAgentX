@@ -70,5 +70,21 @@ export async function createSegmentationForViewport(
     type: segmentationType,
   });
 
+  // Log to workflow history
+  try {
+    const useWorkflowHistoryStore = require('@ohif/app/src/state/useWorkflowHistoryStore').default;
+    if (useWorkflowHistoryStore) {
+      const { addWorkflowItem } = useWorkflowHistoryStore.getState();
+      const segmentationTypeText = segmentationType === SegmentationRepresentations.Labelmap ? 'Labelmap' : 'Contour';
+      addWorkflowItem({
+        title: '创建影像分割',
+        description: `创建了${segmentationTypeText}类型的影像分割: ${label}`,
+        iconName: 'StatusTracking'
+      });
+    }
+  } catch (error) {
+    console.warn('Failed to log to workflow history:', error);
+  }
+
   return generatedSegmentationId;
 }

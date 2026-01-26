@@ -1846,6 +1846,21 @@ function commandsModule({
         });
       });
 
+      // Log to workflow history
+      try {
+        const useWorkflowHistoryStore = require('@ohif/app/src/state/useWorkflowHistoryStore').default;
+        if (useWorkflowHistoryStore) {
+          const { addWorkflowItem } = useWorkflowHistoryStore.getState();
+          addWorkflowItem({
+            title: '打开影像',
+            description: '在视口中加载并显示影像数据集',
+            iconName: 'TabStudies'
+          });
+        }
+      } catch (error) {
+        console.warn('Failed to log to workflow history:', error);
+      }
+
       viewportGridService.setDisplaySetsForViewports(viewportsToUpdate);
     },
     undo: () => {

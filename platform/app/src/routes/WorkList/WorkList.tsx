@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 //
 import filtersMeta from './filtersMeta.js';
 import { useAppConfig } from '@state';
+import useWorkflowHistoryStore from '@state/useWorkflowHistoryStore';
 import { useDebounce, useSearchParams } from '../../hooks';
 import { utils, Types as coreTypes } from '@ohif/core';
 
@@ -43,6 +44,7 @@ import {
 // Custom components
 import AIAssistant from '../../components/AIAssistant/AIAssistant';
 import WorkflowHistory from '../../components/WorkflowHistory/WorkflowHistory';
+import DoctorList from '../../components/DoctorList/DoctorList';
 
 import { Types } from '@ohif/ui';
 
@@ -95,20 +97,14 @@ function WorkList({
 
   // Tab state
   const [activeTab, setActiveTab] = useState('studies');
-  // Workflow history state
-  const [workflowHistory, setWorkflowHistory] = useState<Array<{
-    id: string;
-    title: string;
-    description: string;
-    iconName: string;
-    timestamp: string;
-  }>>([]);
+  // Workflow history state from Zustand store
+  const { workflowHistory, addWorkflowItem, clearWorkflowHistory } = useWorkflowHistoryStore();
   // Drag state for tab navigation
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
 
   // Tab order for navigation
-  const tabOrder = ['studies', 'assistant', 'workflow'];
+  const tabOrder = ['studies', 'assistant', 'workflow', 'consultation'];
 
   // Handle drag start
   const handleDragStart = (e) => {
@@ -534,7 +530,7 @@ function WorkList({
                       }
                       onClick={() => {}}
                       dataCY={`mode-${mode.routeName}-${studyInstanceUid}`}
-                      className={!isValidMode && 'bg-[#222d44]'}
+                      className={!isValidMode ? 'bg-[#222d44]' : ''}
                     >
                       {mode.displayName}
                     </Button>
@@ -646,19 +642,23 @@ function WorkList({
           <div className="flex grow flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList className="mb-4">
-                <TabsTrigger value="studies">
-                  <Icons.TabStudies className="mr-2 h-4 w-4" />
-                  {t('StudyList:Study List')}
-                </TabsTrigger>
-                <TabsTrigger value="assistant">
-                  <Icons.Info className="mr-2 h-4 w-4" />
-                  {t('WorkList:AI Assistant')}
-                </TabsTrigger>
-                <TabsTrigger value="workflow">
-                  <Icons.StatusTracking className="mr-2 h-4 w-4" />
-                  {t('WorkList:Workflow')}
-                </TabsTrigger>
-              </TabsList>
+            <TabsTrigger value="studies">
+              <Icons.TabStudies className="mr-2 h-4 w-4" />
+              {t('StudyList:Study List')}
+            </TabsTrigger>
+            <TabsTrigger value="assistant">
+              <Icons.Info className="mr-2 h-4 w-4" />
+              {t('WorkList:AI Assistant')}
+            </TabsTrigger>
+            <TabsTrigger value="workflow">
+              <Icons.StatusTracking className="mr-2 h-4 w-4" />
+              {t('WorkList:Workflow')}
+            </TabsTrigger>
+            <TabsTrigger value="consultation">
+              <Icons.MultiplePatients className="mr-2 h-4 w-4" />
+              {t('WorkList:Consultation')}
+            </TabsTrigger>
+          </TabsList>
 
               {/* Study List Tab */}
               <TabsContent value="studies" className="flex grow flex-col">
@@ -731,8 +731,13 @@ function WorkList({
               <TabsContent value="workflow" className="flex grow flex-col p-4">
                 <WorkflowHistory
                   workflowHistory={workflowHistory}
-                  onClearHistory={() => setWorkflowHistory([])}
+                  onClearHistory={clearWorkflowHistory}
                 />
+              </TabsContent>
+
+              {/* Consultation Tab */}
+              <TabsContent value="consultation" className="flex grow flex-col p-4">
+                <DoctorList />
               </TabsContent>
             </Tabs>
           </div>

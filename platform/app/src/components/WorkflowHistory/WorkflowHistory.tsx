@@ -42,7 +42,7 @@ const WorkflowHistory: React.FC<WorkflowHistoryProps> = ({ workflowHistory, onCl
         <div className="h-full overflow-y-auto">
           <div className="space-y-3">
             {workflowHistory.map((item, index) => {
-              const IconComponent = item.iconName ? Icons[item.iconName] : null;
+              const IconComponent = item.iconName && Icons[item.iconName] ? Icons[item.iconName] : null;
               return (
                 <div key={index} className="rounded-lg bg-gray-800 p-4 hover:bg-gray-700 transition-colors">
                   <div className="flex items-center justify-between mb-2">

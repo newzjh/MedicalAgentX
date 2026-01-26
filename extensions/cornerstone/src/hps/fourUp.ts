@@ -10,13 +10,21 @@ export const fourUp = {
   modifiedDate: '2023-03-15T10:29:44.894Z',
   availableTo: {},
   editableBy: {},
-  protocolMatchingRules: [],
+  protocolMatchingRules: [
+    {
+      weight: 10,
+      attribute: 'numberOfDisplaySetsWithImages',
+      constraint: {
+        greaterThan: 0,
+      },
+    },
+  ],
   imageLoadStrategy: 'interleaveCenter',
   displaySetSelectors: {
     activeDisplaySet: {
       seriesMatchingRules: [
         {
-          weight: 1,
+          weight: 10,
           attribute: 'isReconstructable',
           constraint: {
             equals: {
@@ -24,6 +32,15 @@ export const fourUp = {
             },
           },
           required: true,
+        },
+        {
+          weight: 5,
+          attribute: 'isVolume',
+          constraint: {
+            equals: {
+              value: true,
+            },
+          },
         },
       ],
     },
