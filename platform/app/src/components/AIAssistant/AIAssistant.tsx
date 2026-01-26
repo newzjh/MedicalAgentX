@@ -76,10 +76,22 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
   // Update local messages when session changes
   useEffect(() => {
+    console.log('[AIAssistant] session变化 - 当前session:', session);
     if (session) {
       setMessages(session.messages);
+      console.log('[AIAssistant] session变化 - 关联影像:', session.associatedImage);
     }
-  }, [session]);
+  }, [session?.messages, session?.id]);
+
+  // Force re-render when associatedImage changes
+  useEffect(() => {
+    console.log('[AIAssistant] 关联影像变化 - 新的关联影像:', session?.associatedImage);
+    // This effect will run when session.associatedImage changes
+    // No need to do anything here, just listening to the change will trigger a re-render
+  }, [session?.associatedImage]);
+
+  // Log when component renders
+  console.log('[AIAssistant] 组件渲染 - 关联影像:', session?.associatedImage);
 
   // Scroll to bottom when new messages are added
   const scrollToBottom = () => {

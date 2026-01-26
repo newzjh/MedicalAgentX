@@ -172,7 +172,7 @@ function WorkList({
   const { resultsPerPage, pageNumber, sortBy, sortDirection } = filterValues;
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('studies');
+  const [activeTab, setActiveTab] = useState('assistant');
   // Workflow history state from Zustand store
   const { workflowHistory, addWorkflowItem, clearWorkflowHistory } = useWorkflowHistoryStore();
   // Drag state for tab navigation
@@ -462,6 +462,168 @@ function WorkList({
       document.body.classList.remove('bg-white');
     };
   }, []);
+
+  // Load associated image from localStorage on component mount
+  useEffect(() => {
+    // Load associated image if exists
+    const storedAssociatedImage = localStorage.getItem('associatedImage');
+    const lastSessionId = localStorage.getItem('lastSessionId');
+    console.log('[WorkList] 组件加载时 - 从localStorage获取关联影像:', storedAssociatedImage);
+    console.log('[WorkList] 组件加载时 - 从localStorage获取会话ID:', lastSessionId);
+    console.log('[WorkList] 组件加载时 - 当前会话ID:', currentSession?.id);
+    console.log('[WorkList] 组件加载时 - 当前关联影像:', currentSession?.associatedImage);
+    console.log('[WorkList] 组件加载时 - 当前sessions数组:', sessions);
+    
+    if (storedAssociatedImage) {
+      setAssociatedImage(storedAssociatedImage);
+      console.log('[WorkList] 组件加载时 - 设置关联影像状态:', storedAssociatedImage);
+
+      // Determine target session ID
+      const targetSessionId = lastSessionId || (currentSession ? currentSession.id : 'ai-default');
+      console.log('[WorkList] 组件加载时 - 目标会话ID:', targetSessionId);
+      
+      // Create or update the target session
+      let targetSession;
+      let updatedSessions;
+      
+      // Check if sessions array is empty
+      if (sessions.length === 0) {
+        console.log('[WorkList] 组件加载时 - sessions数组为空，创建新会话');
+        // Create a new AI session with the associated image
+        targetSession = {
+          id: targetSessionId,
+          type: 'ai',
+          messages: [],
+          associatedImage: storedAssociatedImage,
+        };
+        updatedSessions = [targetSession];
+      } else {
+        console.log('[WorkList] 组件加载时 - 查找目标会话:', targetSessionId);
+        // Find the target session in the sessions array
+        const existingSession = sessions.find(session => session.id === targetSessionId);
+        
+        if (existingSession) {
+          console.log('[WorkList] 组件加载时 - 找到目标会话，更新关联影像');
+          // Update the existing session
+          updatedSessions = sessions.map(session => {
+            if (session.id === targetSessionId) {
+              return {
+                ...session,
+                associatedImage: storedAssociatedImage,
+              };
+            }
+            return session;
+          });
+          targetSession = updatedSessions.find(session => session.id === targetSessionId);
+        } else {
+          console.log('[WorkList] 组件加载时 - 未找到目标会话，创建新会话');
+          // Create a new session with the associated image
+          targetSession = {
+            id: targetSessionId,
+            type: 'ai',
+            messages: [],
+            associatedImage: storedAssociatedImage,
+          };
+          updatedSessions = [...sessions, targetSession];
+        }
+      }
+      
+      // Update the sessions array
+      setSessions(updatedSessions);
+      console.log('[WorkList] 组件加载时 - 更新后的sessions:', updatedSessions);
+      
+      // Update the current session state
+      setCurrentSession(targetSession);
+      console.log('[WorkList] 组件加载时 - 设置当前会话为:', targetSession.id, '关联影像:', targetSession.associatedImage);
+
+      // Clear the stored associated image and session ID after using them
+      localStorage.removeItem('associatedImage');
+      localStorage.removeItem('lastSessionId');
+      console.log('[WorkList] 组件加载时 - 清除localStorage中的关联影像和会话ID');
+    }
+  }, [currentSession?.id, sessions]);
+
+  // Update associated image when active tab changes to assistant
+  useEffect(() => {
+    if (activeTab === 'assistant') {
+      console.log('[WorkList] 切换到assistant选项卡');
+      const storedAssociatedImage = localStorage.getItem('associatedImage');
+      const lastSessionId = localStorage.getItem('lastSessionId');
+      console.log('[WorkList] 切换到assistant选项卡 - 从localStorage获取关联影像:', storedAssociatedImage);
+      console.log('[WorkList] 切换到assistant选项卡 - 从localStorage获取会话ID:', lastSessionId);
+      console.log('[WorkList] 切换到assistant选项卡 - 当前会话ID:', currentSession?.id);
+      console.log('[WorkList] 切换到assistant选项卡 - 当前关联影像:', currentSession?.associatedImage);
+      console.log('[WorkList] 切换到assistant选项卡 - 当前sessions数组:', sessions);
+      
+      if (storedAssociatedImage) {
+        setAssociatedImage(storedAssociatedImage);
+        console.log('[WorkList] 切换到assistant选项卡 - 设置关联影像状态:', storedAssociatedImage);
+
+        // Determine target session ID
+        const targetSessionId = lastSessionId || (currentSession ? currentSession.id : 'ai-default');
+        console.log('[WorkList] 切换到assistant选项卡 - 目标会话ID:', targetSessionId);
+        
+        // Create or update the target session
+        let targetSession;
+        let updatedSessions;
+        
+        // Check if sessions array is empty
+        if (sessions.length === 0) {
+          console.log('[WorkList] 切换到assistant选项卡 - sessions数组为空，创建新会话');
+          // Create a new AI session with the associated image
+          targetSession = {
+            id: targetSessionId,
+            type: 'ai',
+            messages: [],
+            associatedImage: storedAssociatedImage,
+          };
+          updatedSessions = [targetSession];
+        } else {
+          console.log('[WorkList] 切换到assistant选项卡 - 查找目标会话:', targetSessionId);
+          // Find the target session in the sessions array
+          const existingSession = sessions.find(session => session.id === targetSessionId);
+          
+          if (existingSession) {
+            console.log('[WorkList] 切换到assistant选项卡 - 找到目标会话，更新关联影像');
+            // Update the existing session
+            updatedSessions = sessions.map(session => {
+              if (session.id === targetSessionId) {
+                return {
+                  ...session,
+                  associatedImage: storedAssociatedImage,
+                };
+              }
+              return session;
+            });
+            targetSession = updatedSessions.find(session => session.id === targetSessionId);
+          } else {
+            console.log('[WorkList] 切换到assistant选项卡 - 未找到目标会话，创建新会话');
+            // Create a new session with the associated image
+            targetSession = {
+              id: targetSessionId,
+              type: 'ai',
+              messages: [],
+              associatedImage: storedAssociatedImage,
+            };
+            updatedSessions = [...sessions, targetSession];
+          }
+        }
+        
+        // Update the sessions array
+        setSessions(updatedSessions);
+        console.log('[WorkList] 切换到assistant选项卡 - 更新后的sessions:', updatedSessions);
+        
+        // Update the current session state
+        setCurrentSession(targetSession);
+        console.log('[WorkList] 切换到assistant选项卡 - 设置当前会话为:', targetSession.id, '关联影像:', targetSession.associatedImage);
+
+        // Clear the stored associated image and session ID after using them
+        localStorage.removeItem('associatedImage');
+        localStorage.removeItem('lastSessionId');
+        console.log('[WorkList] 切换到assistant选项卡 - 清除localStorage中的关联影像和会话ID');
+      }
+    }
+  }, [activeTab, currentSession?.id, sessions]);
 
   // Sync URL query parameters with filters
   useEffect(() => {
@@ -993,6 +1155,43 @@ function WorkList({
 
               {/* AI Assistant Tab */}
               <TabsContent value="assistant" className="flex grow flex-col p-4">
+                {/* Load DICOM Files Button */}
+                <div className="flex justify-center gap-2 p-4">
+                  <Button
+                    type={ButtonEnums.type.primary}
+                    size={ButtonEnums.size.small}
+                    onClick={() => {
+                      // Store the current tab and session ID before navigation
+                      localStorage.setItem('lastActiveTab', 'assistant');
+                      if (currentSession) {
+                        localStorage.setItem('lastSessionId', currentSession.id);
+                        console.log('[WorkList] 点击Load DICOM按钮 - 当前会话ID:', currentSession.id);
+                        console.log('[WorkList] 点击Load DICOM按钮 - 当前关联影像:', currentSession.associatedImage);
+                      }
+                      navigate('/local?type=dicom');
+                    }}
+                    startIcon={<Icons.Upload />}
+                  >
+                    Load DICOM Files
+                  </Button>
+                  <Button
+                    type={ButtonEnums.type.primary}
+                    size={ButtonEnums.size.small}
+                    onClick={() => {
+                      // Store the current tab and session ID before navigation
+                      localStorage.setItem('lastActiveTab', 'assistant');
+                      if (currentSession) {
+                        localStorage.setItem('lastSessionId', currentSession.id);
+                        console.log('[WorkList] 点击Load Files按钮 - 当前会话ID:', currentSession.id);
+                        console.log('[WorkList] 点击Load Files按钮 - 当前关联影像:', currentSession.associatedImage);
+                      }
+                      navigate('/local?type=files');
+                    }}
+                    startIcon={<Icons.Upload />}
+                  >
+                    Load Files
+                  </Button>
+                </div>
                 <AIAssistant
                   session={currentSession || undefined}
                   onSessionUpdate={handleSessionUpdate}

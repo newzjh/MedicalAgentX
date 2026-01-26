@@ -108,6 +108,18 @@ function Local({ modePath }: LocalProps) {
     studies.forEach(id => query.append('StudyInstanceUIDs', id));
     query.append('datasources', 'dicomlocal');
 
+    // Store the first study's information for association
+    if (studies.length > 0) {
+      const firstStudy = DicomMetadataStore.getStudy(studies[0]);
+      if (firstStudy) {
+        const studyDescription = firstStudy.studyDescription || '未命名研究';
+        const imageInfo = `${studyDescription} (${studies[0]})`;
+        localStorage.setItem('associatedImage', imageInfo);
+        console.log('[Local] 文件加载完成 - 关联影像信息:', imageInfo);
+        console.log('[Local] 文件加载完成 - 会话ID:', localStorage.getItem('lastSessionId'));
+      }
+    }
+
     navigate(`/${modePath}?${decodeURIComponent(query.toString())}`);
   };
 
