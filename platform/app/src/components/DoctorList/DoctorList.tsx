@@ -75,7 +75,7 @@ const DoctorList: React.FC = () => {
           size={ButtonEnums.size.small}
           onClick={handleInvite}
           disabled={!selectedDoctor}
-          startIcon={<Icons.Send />}
+          startIcon={<Icons.ArrowRightBold />}
         >
           {t('WorkList:Invite to Consultation')}
         </Button>
@@ -95,7 +95,7 @@ const DoctorList: React.FC = () => {
                   <p className="text-sm text-gray-400">{doctor.hospital} - {doctor.department}</p>
                 </div>
                 {selectedDoctor?.id === doctor.id && (
-                  <Icons.CheckCircle className="h-5 w-5 text-blue-500" />
+                  <Icons.Checked className="h-5 w-5 text-blue-500" />
                 )}
               </div>
               <p className="text-sm text-gray-300">{doctor.description}</p>
