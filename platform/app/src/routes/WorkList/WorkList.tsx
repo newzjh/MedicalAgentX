@@ -809,6 +809,28 @@ function WorkList({
         isReturnEnabled={false}
         WhiteLabeling={appConfig.whiteLabeling}
         showPatientInfo={PatientInfoVisibility.DISABLED}
+        Secondary={
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="h-7 bg-transparent">
+              <TabsTrigger value="studies" className="text-xs px-2 py-0.5">
+                <Icons.TabStudies className="mr-1 h-3 w-3" />
+                {t('StudyList:Study List')}
+              </TabsTrigger>
+              <TabsTrigger value="assistant" className="text-xs px-2 py-0.5">
+                <Icons.Info className="mr-1 h-3 w-3" />
+                {t('WorkList:AI Assistant')}
+              </TabsTrigger>
+              <TabsTrigger value="workflow" className="text-xs px-2 py-0.5">
+                <Icons.StatusTracking className="mr-1 h-3 w-3" />
+                {t('WorkList:Workflow')}
+              </TabsTrigger>
+              <TabsTrigger value="consultation" className="text-xs px-2 py-0.5">
+                <Icons.MultiplePatients className="mr-1 h-3 w-3" />
+                {t('WorkList:Consultation')}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
       />
       <Onboarding />
       <InvestigationalUseDialog dialogConfiguration={appConfig?.investigationalUseDialog} />
@@ -816,27 +838,9 @@ function WorkList({
         <ScrollArea>
           <div className="flex grow flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
-            <TabsTrigger value="studies">
-              <Icons.TabStudies className="mr-2 h-4 w-4" />
-              {t('StudyList:Study List')}
-            </TabsTrigger>
-            <TabsTrigger value="assistant">
-              <Icons.Info className="mr-2 h-4 w-4" />
-              {t('WorkList:AI Assistant')}
-            </TabsTrigger>
-            <TabsTrigger value="workflow">
-              <Icons.StatusTracking className="mr-2 h-4 w-4" />
-              {t('WorkList:Workflow')}
-            </TabsTrigger>
-            <TabsTrigger value="consultation">
-              <Icons.MultiplePatients className="mr-2 h-4 w-4" />
-              {t('WorkList:Consultation')}
-            </TabsTrigger>
-          </TabsList>
 
               {/* Study List Tab */}
-              <TabsContent value="studies" className="flex grow flex-col">
+              <TabsContent value="studies" className="flex grow flex-col" preventScroll>
                 <StudyListFilter
                   numOfStudies={pageNumber * resultsPerPage > 100 ? 101 : numOfStudies}
                   filtersMeta={filtersMeta}
@@ -898,7 +902,7 @@ function WorkList({
               </TabsContent>
 
               {/* AI Assistant Tab */}
-              <TabsContent value="assistant" className="flex grow flex-col p-4">
+              <TabsContent value="assistant" className="flex grow flex-col p-4" preventScroll>
                 <AIAssistant
                   session={currentSession || undefined}
                   onSessionUpdate={handleSessionUpdate}
@@ -906,7 +910,7 @@ function WorkList({
               </TabsContent>
 
               {/* Workflow Tab */}
-              <TabsContent value="workflow" className="flex grow flex-col p-4">
+              <TabsContent value="workflow" className="flex grow flex-col p-4" preventScroll>
                 <WorkflowHistory
                   workflowHistory={workflowHistory}
                   onClearHistory={clearWorkflowHistory}
@@ -914,7 +918,7 @@ function WorkList({
               </TabsContent>
 
               {/* Consultation Tab */}
-              <TabsContent value="consultation" className="flex grow flex-col p-4">
+              <TabsContent value="consultation" className="flex grow flex-col p-4" preventScroll>
                 <DoctorList onDoctorSelect={handleDoctorSelect} />
               </TabsContent>
             </Tabs>
