@@ -998,6 +998,10 @@ function WorkList({
                   onSessionUpdate={handleSessionUpdate}
                   onGenerateReport={(report) => {
                     setReports(prevReports => [...prevReports, report]);
+                    // Auto switch to reports tab and open the generated report
+                    setActiveTab('reports');
+                    setSelectedReport(report);
+                    setShowReportDialog(true);
                   }}
                 />
               </TabsContent>
@@ -1054,48 +1058,60 @@ function WorkList({
       </div>
 
       {/* Report Details Dialog */}
-      <Dialog open={showReportDialog} onOpenChange={handleCloseReportDialog}>
-        <DialogContent className="max-w-4xl p-6">
-          <DialogHeader>
+      <Dialog open={showReportDialog} onOpenChange={handleCloseReportDialog} className="max-w-full h-full">
+        <DialogContent className="max-w-4xl p-4 sm:p-6 max-h-[90vh] overflow-auto">
+          <DialogHeader className="flex justify-between items-center">
             <DialogTitle className="text-xl font-bold">影像诊断报告单</DialogTitle>
-            <DialogClose />
+            <DialogClose className="w-6 h-6 text-gray-600 hover:text-gray-900 focus:outline-none" />
           </DialogHeader>
           
           {selectedReport && (
             <div className="space-y-6">
               {/* Medical Report Content */}
-              <div className="bg-white border border-gray-300 rounded-lg p-6 shadow-sm">
+              <div className="bg-white border border-gray-300 rounded-lg p-4 sm:p-6 shadow-sm">
                 {/* Patient and Examination Information Table */}
-                <table className="w-full border-collapse mb-4">
-                  <tbody>
-                    <tr className="border-b border-gray-300">
-                      <td className="py-2 px-3 font-medium">门诊号:</td>
-                      <td className="py-2 px-3">{selectedReport.content.outpatientNo}</td>
-                      <td className="py-2 px-3 font-medium">影像号:</td>
-                      <td className="py-2 px-3">{selectedReport.content.imageNo}</td>
-                    </tr>
-                    <tr className="border-b border-gray-300">
-                      <td className="py-2 px-3 font-medium">姓 名:</td>
-                      <td className="py-2 px-3">{selectedReport.content.patientName}</td>
-                      <td className="py-2 px-3 font-medium">性 别:</td>
-                      <td className="py-2 px-3">{selectedReport.content.patientGender}</td>
-                      <td className="py-2 px-3 font-medium">年 龄:</td>
-                      <td className="py-2 px-3">{selectedReport.content.patientAge}</td>
-                      <td className="py-2 px-3 font-medium">检查设备:</td>
-                      <td className="py-2 px-3">{selectedReport.content.examinationEquipment}</td>
-                    </tr>
-                    <tr className="border-b border-gray-300">
-                      <td className="py-2 px-3 font-medium">科 别:</td>
-                      <td className="py-2 px-3">{selectedReport.content.department}</td>
-                      <td className="py-2 px-3 font-medium">病 区:</td>
-                      <td className="py-2 px-3">{selectedReport.content.ward}</td>
-                      <td className="py-2 px-3 font-medium">床 号:</td>
-                      <td className="py-2 px-3">{selectedReport.content.bedNo}</td>
-                      <td className="py-2 px-3 font-medium">摄片日期:</td>
-                      <td className="py-2 px-3">{selectedReport.content.examinationDate} {selectedReport.content.examinationTime}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">门诊号:</span>
+                    <span>{selectedReport.content.outpatientNo}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">影像号:</span>
+                    <span>{selectedReport.content.imageNo}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">姓 名:</span>
+                    <span>{selectedReport.content.patientName}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">性 别:</span>
+                    <span>{selectedReport.content.patientGender}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">年 龄:</span>
+                    <span>{selectedReport.content.patientAge}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">检查设备:</span>
+                    <span>{selectedReport.content.examinationEquipment}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">科 别:</span>
+                    <span>{selectedReport.content.department}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">病 区:</span>
+                    <span>{selectedReport.content.ward}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">床 号:</span>
+                    <span>{selectedReport.content.bedNo}</span>
+                  </div>
+                  <div className="flex justify-between items-center sm:col-span-2">
+                    <span className="font-medium">摄片日期:</span>
+                    <span>{selectedReport.content.examinationDate} {selectedReport.content.examinationTime}</span>
+                  </div>
+                </div>
 
                 {/* Clinical Diagnosis */}
                 <div className="mb-4">
