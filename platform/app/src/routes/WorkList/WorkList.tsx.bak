@@ -1,0 +1,270 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import classnames from 'classnames';
+import PropTypes from 'prop-types';
+import { Link, useNavigate } from 'react-router-dom';
+import moment from 'moment';
+import qs from 'query-string';
+import isEqual from 'lodash.isequal';
+import { useTranslation } from 'react-i18next';
+
+import filtersMeta from './filtersMeta.js';
+import { useAppConfig } from '@state';
+import useWorkflowHistoryStore from '@state/useWorkflowHistoryStore';
+import { useDebounce, useSearchParams, useOrientation } from '../../hooks';
+import { utils, Types as coreTypes, AppTypes } from '@ohif/core';
+
+import {
+  StudyListExpandedRow,
+  EmptyStudies,
+  StudyListTable,
+  StudyListPagination,
+  StudyListFilter,
+  Button,
+  ButtonEnums,
+  PatientInfoVisibility,
+} from '@ohif/ui';
+
+import {
+  Header,
+  Icons,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  Clipboard,
+  useModal,
+  useSessionStorage,
+  Onboarding,
+  ScrollArea,
+  InvestigationalUseDialog,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from '@ohif/ui-next';
+
+import { preserveQueryParameters, preserveQueryStrings } from '../../utils/preserveQueryParameters';
+
+// Custom components
+import AIAssistant from '../../components/AIAssistant/AIAssistant';
+import WorkflowHistory from '../../components/WorkflowHistory/WorkflowHistory';
+import DoctorList from '../../components/DoctorList/DoctorList';
+
+interface Session {
+  id: string;
+  type: 'ai' | 'doctor';
+  doctorId?: string;
+  doctorName?: string;
+  messages: Array<{
+    id: string;
+    text: string;
+    isUser: boolean;
+    timestamp: string;
+  }>;
+  associatedImage?: string;
+}
+
+interface Doctor {
+  id: string;
+  name: string;
+  hospital: string;
+  department: string;
+  description: string;
+}
+
+interface MedicalReport {
+  id: string;
+  title: string;
+  createdAt: string;
+  associatedImage?: string;
+  content: {
+    diagnosticPerson: string;
+    analysisTechnology: string;
+    findings: string;
+    recommendations: string;
+    studyInformation: string;
+    patientInformation: string;
+    examinationDate: string;
+    reportDate: string;
+    reportStatus: string;
+    conclusion: string;
+  };
+}
+
+
+
+const { sortBySeriesDate } = utils;
+
+const seriesInStudiesMap = new Map();
+
+function WorkList({
+  data: studies,
+  dataTotal: studiesTotal,
+  isLoadingData,
+  dataSource,
+  hotkeysManager,
+  dataPath,
+  onRefresh,
+  servicesManager,
+}) {
+  const { show, hide } = useModal();
+  const { t } = useTranslation();
+  const [appConfig] = useAppConfig();
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('studies');
+  
+  // Session management state
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [associatedImage, setAssociatedImage] = useState<string | undefined>();
+  
+  // Reports management state
+  const [reports, setReports] = useState<MedicalReport[]>([]);
+
+  return (
+    <div className="flex h-screen flex-col bg-white">
+      <Header
+        isSticky
+        menuOptions={[]}
+        isReturnEnabled={false}
+        WhiteLabeling={appConfig.whiteLabeling}
+        showPatientInfo={PatientInfoVisibility.DISABLED}
+        Secondary={
+          <Tabs value={activeTab} onValueChange={(tabName) => {
+              setActiveTab(tabName);
+            }}>
+              <TabsList className="h-7 bg-transparent">
+                <TabsTrigger value="studies" className="text-xs px-2 py-0.5 text-gray-900">
+                  <Icons.TabStudies className="mr-1 h-3 w-3" />
+                  {t('StudyList:Study List')}
+                </TabsTrigger>
+                <TabsTrigger value="assistant" className="text-xs px-2 py-0.5 text-gray-900">
+                  <Icons.Info className="mr-1 h-3 w-3" />
+                  {t('WorkList:AI Assistant')}
+                </TabsTrigger>
+                <TabsTrigger value="workflow" className="text-xs px-2 py-0.5 text-gray-900">
+                  <Icons.StatusTracking className="mr-1 h-3 w-3" />
+                  {t('WorkList:Workflow')}
+                </TabsTrigger>
+                <TabsTrigger value="consultation" className="text-xs px-2 py-0.5 text-gray-900">
+                  <Icons.MultiplePatients className="mr-1 h-3 w-3" />
+                  {t('WorkList:Consultation')}
+                </TabsTrigger>
+                <TabsTrigger value="reports" className="text-xs px-2 py-0.5 text-gray-900">
+                  <Icons.Document className="mr-1 h-3 w-3" />
+                  {t('WorkList:Reports')}
+                </TabsTrigger>
+              </TabsList>
+          </Tabs>
+        }
+      />
+      <Onboarding />
+      <InvestigationalUseDialog dialogConfiguration={appConfig?.investigationalUseDialog} />
+      <div className="flex h-full flex-col overflow-y-auto">
+        <ScrollArea>
+          <div className="flex grow flex-col">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+
+              {/* Study List Tab */}
+              <TabsContent value="studies" className="flex grow flex-col">
+                <div className="flex justify-center gap-2 p-4">
+                  <Button
+                    type={ButtonEnums.type.primary}
+                    size={ButtonEnums.size.small}
+                    onClick={() => navigate('/local?type=dicom')}
+                    startIcon={<Icons.Upload />}
+                  >
+                    Load DICOM Files
+                  </Button>
+                </div>
+                {false ? (
+                  <div className="flex justify-center items-center pt-48">
+                    <EmptyStudies />
+                  </div>
+                ) : null}
+              </TabsContent>
+
+              {/* AI Assistant Tab */}
+              <TabsContent value="assistant" className="flex grow flex-col p-4">
+                <AIAssistant
+                  session={currentSession || undefined}
+                  onSessionUpdate={() => {}}
+                  onGenerateReport={(report) => {
+                    setReports(prev => [...prev, report]);
+                  }}
+                />
+              </TabsContent>
+
+              {/* Workflow Tab */}
+              <TabsContent value="workflow" className="flex grow flex-col p-4">
+                <div className="flex flex-col h-full text-gray-900">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h2 className="text-2xl font-bold">Workflow History</h2>
+                    <Button
+                      type={ButtonEnums.type.secondary}
+                      size={ButtonEnums.size.small}
+                      disabled={true}
+                      startIcon={<Icons.Trash />}
+                    >
+                      Clear History
+                    </Button>
+                  </div>
+                  <div className="flex justify-center items-center h-full text-gray-400">
+                    No workflow history yet
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Consultation Tab */}
+              <TabsContent value="consultation" className="flex grow flex-col p-4">
+                <div className="flex flex-col h-full text-gray-900">
+                  <h2 className="text-2xl font-bold mb-4">医生列表</h2>
+                  <div className="flex justify-center items-center h-full text-gray-400">
+                    医生列表组件
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* Reports Tab */}
+              <TabsContent value="reports" className="flex grow flex-col p-4">
+                <h2 className="text-2xl font-bold mb-4">医学分析报告</h2>
+                {reports.length === 0 ? (
+                  <div className="flex justify-center items-center h-64 bg-gray-100 rounded-lg text-gray-500">
+                    还没有生成报告，在AI助手或会诊选项卡中生成报告
+                  </div>
+                ) : (
+                  <ScrollArea className="h-full">
+                    <div className="space-y-4">
+                      {reports.map(report => (
+                        <div key={report.id} className="p-4 bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="text-lg font-semibold">{report.title}</h3>
+                            <span className="text-sm text-gray-500">{report.createdAt}</span>
+                          </div>
+                          {report.associatedImage && (
+                            <div className="text-sm text-blue-600 mb-2">
+                              关联影像: {report.associatedImage}
+                            </div>
+                          )}
+                          <div className="space-y-2 text-sm">
+                            <div><strong>诊断者:</strong> {report.content.diagnosticPerson}</div>
+                            <div><strong>分析技术:</strong> {report.content.analysisTechnology}</div>
+                            <div><strong>发现:</strong> {report.content.findings.substring(0, 100)}...</div>
+                            <div><strong>结论:</strong> {report.content.conclusion.substring(0, 100)}...</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ScrollArea>
+      </div>
+    </div>
+  );
+}
+
+export default WorkList;

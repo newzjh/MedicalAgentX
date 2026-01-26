@@ -10,6 +10,25 @@ interface Message {
   timestamp: string;
 }
 
+interface MedicalReport {
+  id: string;
+  title: string;
+  createdAt: string;
+  associatedImage?: string;
+  content: {
+    diagnosticPerson: string;
+    analysisTechnology: string;
+    findings: string;
+    recommendations: string;
+    studyInformation: string;
+    patientInformation: string;
+    examinationDate: string;
+    reportDate: string;
+    reportStatus: string;
+    conclusion: string;
+  };
+}
+
 interface AIAssistantProps {
   session?: {
     id: string;
@@ -19,9 +38,10 @@ interface AIAssistantProps {
     associatedImage?: string;
   };
   onSessionUpdate: (sessionId: string, messages: Message[]) => void;
+  onGenerateReport?: (report: MedicalReport) => void;
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onGenerateReport }) => {
   const { t } = useTranslation();
   const [messages, setMessages] = useState<Message[]>(session?.messages || []);
   const [inputText, setInputText] = useState('');
@@ -123,6 +143,34 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate }) =
     }
   };
 
+  // Generate medical report
+  const handleGenerateReport = () => {
+    if (!session || !onGenerateReport) return;
+
+    // Generate a simple report based on the conversation and associated image
+    const report: MedicalReport = {
+      id: `report-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: `${session.associatedImage ? session.associatedImage : '医学报告'} - ${new Date().toLocaleDateString()}`,
+      createdAt: new Date().toISOString(),
+      associatedImage: session.associatedImage,
+      content: {
+        diagnosticPerson: session.type === 'ai' ? 'AI智能体' : session.doctorName || '医生',
+        analysisTechnology: session.type === 'ai' ? '大语言模型' : '人工诊断',
+        findings: '根据影像分析，发现[病灶描述]。',
+        recommendations: '建议进一步检查或治疗方案。',
+        studyInformation: session.associatedImage || '未关联具体研究',
+        patientInformation: '患者信息将从系统中获取',
+        examinationDate: new Date().toISOString().split('T')[0],
+        reportDate: new Date().toISOString().split('T')[0],
+        reportStatus: '已完成',
+        conclusion: '综合分析结果，诊断为[诊断结论]。'
+      }
+    };
+
+    // Call the callback to add the report to the list
+    onGenerateReport(report);
+  };
+
   return (
     <div className="flex flex-col items-center flex-grow text-white">
       {session?.type === 'ai' ? (
@@ -176,6 +224,19 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate }) =
             )}
             <div ref={messagesEndRef} />
           </div>
+        </div>
+
+        {/* Generate report button */}
+        <div className="flex justify-center mb-2">
+          <Button
+            type={ButtonEnums.type.secondary}
+            size={ButtonEnums.size.medium}
+            onClick={handleGenerateReport}
+            startIcon={<Icons.Download />}
+            disabled={!session}
+          >
+            {t('WorkList:Generate Report')}
+          </Button>
         </div>
 
         {/* Input area */}

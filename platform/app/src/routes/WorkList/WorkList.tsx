@@ -21,6 +21,7 @@ import {
   StudyListFilter,
   Button,
   ButtonEnums,
+  Types,
 } from '@ohif/ui';
 
 import {
@@ -40,6 +41,8 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@ohif/ui-next';
+
+import { preserveQueryParameters, preserveQueryStrings } from '../../utils/preserveQueryParameters';
 
 // Custom components
 import AIAssistant from '../../components/AIAssistant/AIAssistant';
@@ -68,9 +71,24 @@ interface Doctor {
   description: string;
 }
 
-import { Types } from '@ohif/ui';
-
-import { preserveQueryParameters, preserveQueryStrings } from '../../utils/preserveQueryParameters';
+interface MedicalReport {
+  id: string;
+  title: string;
+  createdAt: string;
+  associatedImage?: string;
+  content: {
+    diagnosticPerson: string;
+    analysisTechnology: string;
+    findings: string;
+    recommendations: string;
+    studyInformation: string;
+    patientInformation: string;
+    examinationDate: string;
+    reportDate: string;
+    reportStatus: string;
+    conclusion: string;
+  };
+}
 
 const PatientInfoVisibility = Types.PatientInfoVisibility;
 
@@ -133,6 +151,9 @@ function WorkList({
   const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [associatedImage, setAssociatedImage] = useState<string | undefined>();
+
+  // Reports management state
+  const [reports, setReports] = useState<MedicalReport[]>([]);
 
   // Cookie utility functions
   const getCookie = (name: string): string | null => {
@@ -262,7 +283,7 @@ function WorkList({
   };
 
   // Tab order for navigation
-  const tabOrder = ['studies', 'assistant', 'workflow', 'consultation'];
+  const tabOrder = ['studies', 'assistant', 'workflow', 'consultation', 'reports'];
 
   // Handle drag start
   const handleDragStart = (e) => {
@@ -843,6 +864,10 @@ function WorkList({
                 <Icons.MultiplePatients className="mr-1 h-3 w-3" />
                 {t('WorkList:Consultation')}
               </TabsTrigger>
+              <TabsTrigger value="reports" className="text-xs px-2 py-0.5 text-gray-900">
+                <Icons.Download className="mr-1 h-3 w-3" />
+                {t('WorkList:Reports')}
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         }
@@ -924,6 +949,9 @@ function WorkList({
                 <AIAssistant
                   session={currentSession || undefined}
                   onSessionUpdate={handleSessionUpdate}
+                  onGenerateReport={(report) => {
+                    setReports(prevReports => [...prevReports, report]);
+                  }}
                 />
               </TabsContent>
 
@@ -938,6 +966,36 @@ function WorkList({
               {/* Consultation Tab */}
               <TabsContent value="consultation" className="flex grow flex-col p-4">
                 <DoctorList onDoctorSelect={handleDoctorSelect} onTabChange={setActiveTab} />
+              </TabsContent>
+
+              {/* Reports Tab */}
+              <TabsContent value="reports" className="flex grow flex-col p-4">
+                <h2 className="mb-4 text-xl font-bold">医学报告列表</h2>
+                {reports.length > 0 ? (
+                  <div className="space-y-4">
+                    {reports.map(report => (
+                      <div key={report.id} className="p-4 border rounded-lg shadow-sm">
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-lg font-semibold">{report.title}</h3>
+                          <span className="text-sm text-gray-500">{report.createdAt}</span>
+                        </div>
+                        {report.associatedImage && (
+                          <p className="mb-2 text-sm text-gray-600">关联影像: {report.associatedImage}</p>
+                        )}
+                        <div className="space-y-1 text-sm">
+                          <p><strong>诊断者:</strong> {report.content.diagnosticPerson}</p>
+                          <p><strong>分析技术:</strong> {report.content.analysisTechnology}</p>
+                          <p><strong>报告状态:</strong> {report.content.reportStatus}</p>
+                          <p><strong>结论:</strong> {report.content.conclusion}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    暂无生成的报告
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
