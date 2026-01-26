@@ -16,16 +16,42 @@ interface MedicalReport {
   createdAt: string;
   associatedImage?: string;
   content: {
+    // 患者基本信息
+    patientName: string;
+    patientGender: string;
+    patientAge: string;
+    outpatientNo: string;
+    imageNo: string;
+    department: string;
+    ward: string;
+    bedNo: string;
+    
+    // 检查信息
+    examinationEquipment: string;
+    examinationDate: string;
+    examinationTime: string;
+    examinationName: string;
+    clinicalDiagnosis: string;
+    chiefComplaint: string;
+    
+    // 影像信息
+    imageManifestation: string;
+    imageDiagnosis: string;
+    
+    // 报告信息
     diagnosticPerson: string;
+    reviewPerson: string;
+    reportDate: string;
+    reportTime: string;
+    reportStatus: string;
+    
+    // 其他信息
     analysisTechnology: string;
     findings: string;
     recommendations: string;
     studyInformation: string;
-    patientInformation: string;
-    examinationDate: string;
-    reportDate: string;
-    reportStatus: string;
     conclusion: string;
+    remarks: string;
   };
 }
 
@@ -147,23 +173,53 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   const handleGenerateReport = () => {
     if (!session || !onGenerateReport) return;
 
+    const now = new Date();
+    const formattedDate = now.toISOString().split('T')[0];
+    const formattedTime = now.toTimeString().split(' ')[0];
+
     // Generate a simple report based on the conversation and associated image
     const report: MedicalReport = {
       id: `report-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      title: `${session.associatedImage ? session.associatedImage : '医学报告'} - ${new Date().toLocaleDateString()}`,
-      createdAt: new Date().toISOString(),
+      title: `${session.associatedImage ? session.associatedImage : '医学报告'} - ${formattedDate}`,
+      createdAt: now.toISOString(),
       associatedImage: session.associatedImage,
       content: {
+        // 患者基本信息
+        patientName: '患者姓名',
+        patientGender: '女',
+        patientAge: '30岁',
+        outpatientNo: `K${Math.floor(Math.random() * 100000000)}`,
+        imageNo: `Q${Math.floor(Math.random() * 1000000)}`,
+        department: '骨科',
+        ward: '无',
+        bedNo: '无',
+        
+        // 检查信息
+        examinationEquipment: '联影MR',
+        examinationDate: formattedDate,
+        examinationTime: formattedTime,
+        examinationName: '[右膝关节MRI, 平扫]',
+        clinicalDiagnosis: '主：膝关节痛',
+        chiefComplaint: '膝关节痛',
+        
+        // 影像信息
+        imageManifestation: '右膝关节MRI平扫\n横断位FSE: PDWI；矢状位FSE: PDWI、T1WI；冠状位FSE: PDWI、T1WI；\n右膝关节在位，关节间隙正常，股骨下段见局灶性PDWI高信号影，内侧半月板后角见横行PDWI高信号影，未累及关节面；外侧半月板未见明显异常信号；前交叉韧带上部肿胀，PDWI信号增高；后交叉韧带、内外侧副韧带连续，连续性未见明确中断，其内信号未见明显异常。膝关节腔、髌上囊内见少量积液信号。',
+        imageDiagnosis: '右股骨下段局灶性骨髓水肿；\n右膝前交叉韧带损伤，请结合查体，随访；\n右膝内侧半月板后角变性（I-II°）。\n右膝关节腔、髌上囊少量积液。',
+        
+        // 报告信息
         diagnosticPerson: session.type === 'ai' ? 'AI智能体' : session.doctorName || '医生',
+        reviewPerson: '',
+        reportDate: formattedDate,
+        reportTime: formattedTime,
+        reportStatus: '已完成',
+        
+        // 其他信息
         analysisTechnology: session.type === 'ai' ? '大语言模型' : '人工诊断',
         findings: '根据影像分析，发现[病灶描述]。',
         recommendations: '建议进一步检查或治疗方案。',
         studyInformation: session.associatedImage || '未关联具体研究',
-        patientInformation: '患者信息将从系统中获取',
-        examinationDate: new Date().toISOString().split('T')[0],
-        reportDate: new Date().toISOString().split('T')[0],
-        reportStatus: '已完成',
-        conclusion: '综合分析结果，诊断为[诊断结论]。'
+        conclusion: '综合分析结果，诊断为[诊断结论]。',
+        remarks: '本报告仅供临床医师参考，不作其它证明用。'
       }
     };
 

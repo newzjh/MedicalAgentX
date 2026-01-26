@@ -52,37 +52,37 @@ const StudyListPagination = ({ onChangePage, currentPage, perPage, onChangePerPa
               </Typography>
               {/* TODO Revisit design of LegacyButtonGroup later - for now use LegacyButton for its children.*/}
               <LegacyButtonGroup>
-                <LegacyButton
-                  size="initial"
-                  className="px-4 py-2 text-base text-gray-900"
-                  color="translucent"
-                  border="gray-300"
-                  variant="outlined"
-                  onClick={() => navigateToPage(1)}
-                >
-                  {`<<`}
-                </LegacyButton>
-                <LegacyButton
-                  size="initial"
-                  className="py-2 px-2 text-base text-gray-900"
-                  color="translucent"
-                  border="gray-300"
-                  variant="outlined"
-                  onClick={() => navigateToPage(currentPage - 1)}
-                >
-                  {t('Previous')}
-                </LegacyButton>
-                <LegacyButton
-                  size="initial"
-                  className="py-2 px-4 text-base text-gray-900"
-                  color="translucent"
-                  border="gray-300"
-                  variant="outlined"
-                  onClick={() => navigateToPage(currentPage + 1)}
-                >
-                  {t('Next')}
-                </LegacyButton>
-              </LegacyButtonGroup>
+              <LegacyButton
+                size="initial"
+                className="px-4 py-2 text-base text-gray-900"
+                color="translucent"
+                border="light"
+                variant="outlined"
+                onClick={() => navigateToPage(1)}
+              >
+                {`<<`}
+              </LegacyButton>
+              <LegacyButton
+                size="initial"
+                className="py-2 px-2 text-base text-gray-900"
+                color="translucent"
+                border="light"
+                variant="outlined"
+                onClick={() => navigateToPage(currentPage - 1)}
+              >
+                {t('Previous')}
+              </LegacyButton>
+              <LegacyButton
+                size="initial"
+                className="py-2 px-4 text-base text-gray-900"
+                color="translucent"
+                border="light"
+                variant="outlined"
+                onClick={() => navigateToPage(currentPage + 1)}
+              >
+                {t('Next')}
+              </LegacyButton>
+            </LegacyButtonGroup>
             </div>
           </div>
         </div>
