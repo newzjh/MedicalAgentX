@@ -46,6 +46,28 @@ import AIAssistant from '../../components/AIAssistant/AIAssistant';
 import WorkflowHistory from '../../components/WorkflowHistory/WorkflowHistory';
 import DoctorList from '../../components/DoctorList/DoctorList';
 
+interface Session {
+  id: string;
+  type: 'ai' | 'doctor';
+  doctorId?: string;
+  doctorName?: string;
+  messages: Array<{
+    id: string;
+    text: string;
+    isUser: boolean;
+    timestamp: string;
+  }>;
+  associatedImage?: string;
+}
+
+interface Doctor {
+  id: string;
+  name: string;
+  hospital: string;
+  department: string;
+  description: string;
+}
+
 import { Types } from '@ohif/ui';
 
 import { preserveQueryParameters, preserveQueryStrings } from '../../utils/preserveQueryParameters';
@@ -102,6 +124,139 @@ function WorkList({
   // Drag state for tab navigation
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
+
+  // Session management state
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [associatedImage, setAssociatedImage] = useState<string | undefined>();
+
+  // Cookie utility functions
+  const getCookie = (name: string): string | null => {
+    const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+    return match ? match[2] : null;
+  };
+
+  const setCookie = (name: string, value: string, days: number = 7): void => {
+    const date = new Date();
+    date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+    const expires = `expires=${date.toUTCString()}`;
+    document.cookie = `${name}=${value}; ${expires}; path=/`;
+  };
+
+  // Load sessions from cookie on component mount
+  useEffect(() => {
+    const savedSessions = getCookie('chatSessions');
+    if (savedSessions) {
+      try {
+        const parsedSessions = JSON.parse(savedSessions);
+        setSessions(parsedSessions);
+        // Set current session to AI session by default
+        const aiSession = parsedSessions.find((s: Session) => s.type === 'ai');
+        if (aiSession) {
+          setCurrentSession(aiSession);
+        }
+      } catch (error) {
+        console.error('Error parsing saved sessions:', error);
+      }
+    } else {
+      // Create default AI session if no sessions exist
+      const defaultAISession: Session = {
+        id: 'ai-default',
+        type: 'ai',
+        messages: [],
+      };
+      setSessions([defaultAISession]);
+      setCurrentSession(defaultAISession);
+    }
+  }, []);
+
+  // Save sessions to cookie when sessions change
+  useEffect(() => {
+    if (sessions.length > 0) {
+      setCookie('chatSessions', JSON.stringify(sessions));
+    }
+  }, [sessions]);
+
+  // Handle doctor selection from DoctorList component
+  const handleDoctorSelect = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+
+    // Check if a session already exists for this doctor
+    let doctorSession = sessions.find((s: Session) => s.type === 'doctor' && s.doctorId === doctor.id);
+
+    if (!doctorSession) {
+      // Create new session for this doctor
+      doctorSession = {
+        id: `doctor-${doctor.id}`,
+        type: 'doctor',
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        messages: [],
+        associatedImage: associatedImage,
+      };
+      setSessions([...sessions, doctorSession]);
+    } else {
+      // Update associated image if it's not set
+      if (!doctorSession.associatedImage && associatedImage) {
+        doctorSession = {
+          ...doctorSession,
+          associatedImage: associatedImage,
+        };
+        setSessions(sessions.map(s => s.id === doctorSession!.id ? doctorSession! : s));
+      }
+    }
+
+    // Switch to AI Assistant tab and set current session
+    setCurrentSession(doctorSession);
+    setActiveTab('assistant');
+  };
+
+  // Handle session message update
+  const handleSessionUpdate = (sessionId: string, messages: Session['messages']) => {
+    setSessions(sessions.map(session => {
+      if (session.id === sessionId) {
+        return {
+          ...session,
+          messages,
+        };
+      }
+      return session;
+    }));
+
+    // Update current session if it's the one being updated
+    if (currentSession && currentSession.id === sessionId) {
+      setCurrentSession(prev => prev ? { ...prev, messages } : null);
+    }
+  };
+
+  // Handle AI session selection
+  const handleAISessionSelect = () => {
+    // Check if AI session exists
+    let aiSession = sessions.find((s: Session) => s.type === 'ai');
+
+    if (!aiSession) {
+      // Create new AI session
+      aiSession = {
+        id: 'ai-default',
+        type: 'ai',
+        messages: [],
+        associatedImage: associatedImage,
+      };
+      setSessions([...sessions, aiSession]);
+    } else {
+      // Update associated image if it's not set
+      if (!aiSession.associatedImage && associatedImage) {
+        aiSession = {
+          ...aiSession,
+          associatedImage: associatedImage,
+        };
+        setSessions(sessions.map(s => s.id === aiSession!.id ? aiSession! : s));
+      }
+    }
+
+    setCurrentSession(aiSession);
+  };
 
   // Tab order for navigation
   const tabOrder = ['studies', 'assistant', 'workflow', 'consultation'];
@@ -325,6 +480,31 @@ function WorkList({
   const rollingPageNumber = (pageNumber - 1) % rollingPageNumberMod;
   const offset = resultsPerPage * rollingPageNumber;
   const offsetAndTake = offset + resultsPerPage;
+  // Handle image association when study is opened
+  const handleImageAssociation = (studyInstanceUid: string, studyDescription: string) => {
+    const imageInfo = `${studyDescription} (${studyInstanceUid})`;
+    setAssociatedImage(imageInfo);
+
+    // Update all sessions that don't have an associated image yet
+    setSessions(sessions.map(session => {
+      if (!session.associatedImage) {
+        return {
+          ...session,
+          associatedImage: imageInfo,
+        };
+      }
+      return session;
+    }));
+
+    // Update current session if it exists and doesn't have an associated image
+    if (currentSession && !currentSession.associatedImage) {
+      setCurrentSession(prev => prev ? {
+        ...prev,
+        associatedImage: imageInfo,
+      } : null);
+    }
+  };
+
   const tableDataSource = sortedStudies.map((study, key) => {
     const rowKey = key + 1;
     const isExpanded = expandedRows.some(k => k === rowKey);
@@ -339,16 +519,8 @@ function WorkList({
       date,
       time,
     } = study;
-    const studyDate =
-      date &&
-      moment(date, ['YYYYMMDD', 'YYYY.MM.DD'], true).isValid() &&
-      moment(date, ['YYYYMMDD', 'YYYY.MM.DD']).format(t('Common:localDateFormat', 'MMM-DD-YYYY'));
-    const studyTime =
-      time &&
-      moment(time, ['HH', 'HHmm', 'HHmmss', 'HHmmss.SSS']).isValid() &&
-      moment(time, ['HH', 'HHmm', 'HHmmss', 'HHmmss.SSS']).format(
-        t('Common:localTimeFormat', 'hh:mm A')
-      );
+    const studyDate = date && moment(date, ['YYYYMMDD', 'YYYY.MM.DD'], true).isValid() && moment(date, ['YYYYMMDD', 'YYYY.MM.DD']).format(t('Common:localDateFormat', 'MMM-DD-YYYY'));
+    const studyTime = time && moment(time, ['HH', 'HHmm', 'HHmmss', 'HHmmss.SSS']).isValid() && moment(time, ['HH', 'HHmm', 'HHmmss', 'HHmmss.SSS']).format(t('Common:localTimeFormat', 'hh:mm A'));
 
     const makeCopyTooltipCell = textValue => {
       if (!textValue) {
@@ -505,6 +677,9 @@ function WorkList({
                       // For example, the event bubbles up when the icon embedded in the disabled button is clicked.
                       if (!isValidMode) {
                         event.preventDefault();
+                      } else {
+                        // Associate the image with the current session when opened
+                        handleImageAssociation(studyInstanceUid, description);
                       }
                     }}
                     // to={`${mode.routeName}/dicomweb?StudyInstanceUIDs=${studyInstanceUid}`}
@@ -680,7 +855,7 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local')}
+                    onClick={() => navigate('/local?type=dicom')}
                     startIcon={<Icons.Upload />}
                   >
                     Load DICOM Files
@@ -688,10 +863,10 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local')}
+                    onClick={() => navigate('/local?type=files')}
                     startIcon={<Icons.Upload />}
                   >
-                    Load NRRD Files
+                    Load Files
                   </Button>
                 </div>
                 {hasStudies ? (
@@ -724,7 +899,10 @@ function WorkList({
 
               {/* AI Assistant Tab */}
               <TabsContent value="assistant" className="flex grow flex-col p-4">
-                <AIAssistant />
+                <AIAssistant
+                  session={currentSession || undefined}
+                  onSessionUpdate={handleSessionUpdate}
+                />
               </TabsContent>
 
               {/* Workflow Tab */}
@@ -737,7 +915,7 @@ function WorkList({
 
               {/* Consultation Tab */}
               <TabsContent value="consultation" className="flex grow flex-col p-4">
-                <DoctorList />
+                <DoctorList onDoctorSelect={handleDoctorSelect} />
               </TabsContent>
             </Tabs>
           </div>

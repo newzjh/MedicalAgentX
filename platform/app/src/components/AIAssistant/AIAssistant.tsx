@@ -10,12 +10,30 @@ interface Message {
   timestamp: string;
 }
 
-const AIAssistant: React.FC = () => {
+interface AIAssistantProps {
+  session?: {
+    id: string;
+    type: 'ai' | 'doctor';
+    doctorName?: string;
+    messages: Message[];
+    associatedImage?: string;
+  };
+  onSessionUpdate: (sessionId: string, messages: Message[]) => void;
+}
+
+const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate }) => {
   const { t } = useTranslation();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(session?.messages || []);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Update local messages when session changes
+  useEffect(() => {
+    if (session) {
+      setMessages(session.messages);
+    }
+  }, [session]);
 
   // Scroll to bottom when new messages are added
   const scrollToBottom = () => {
@@ -61,7 +79,7 @@ const AIAssistant: React.FC = () => {
 
   // Handle sending a message
   const handleSendMessage = async () => {
-    if (!inputText.trim() || isLoading) return;
+    if (!inputText.trim() || isLoading || !session) return;
 
     const userMessage: Message = {
       id: generateId(),
@@ -70,19 +88,31 @@ const AIAssistant: React.FC = () => {
       timestamp: formatTimestamp()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    onSessionUpdate(session.id, updatedMessages);
     setInputText('');
 
-    // Get AI response
-    const aiResponseText = await callDoubaoAPI(inputText.trim());
-    const aiMessage: Message = {
+    // Get AI response or simulate doctor response
+    let responseText = '';
+    if (session.type === 'ai') {
+      responseText = await callDoubaoAPI(inputText.trim());
+    } else {
+      // Simulate doctor response
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      responseText = `这是${session.doctorName}医生的回复：${inputText.trim()}`;
+    }
+
+    const responseMessage: Message = {
       id: generateId(),
-      text: aiResponseText,
+      text: responseText,
       isUser: false,
       timestamp: formatTimestamp()
     };
 
-    setMessages(prev => [...prev, aiMessage]);
+    const finalMessages = [...updatedMessages, responseMessage];
+    setMessages(finalMessages);
+    onSessionUpdate(session.id, finalMessages);
   };
 
   // Handle input key press (send on Enter, shift+Enter for new line)
@@ -94,17 +124,38 @@ const AIAssistant: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-white">
-      <Icons.Info className="mb-4 h-16 w-16 text-primary" />
-      <h2 className="mb-2 text-2xl font-bold">{t('WorkList:AI Assistant')}</h2>
-      <p className="mb-6 text-center text-gray-400">{t('WorkList:Ask questions about medical images')}</p>
+    <div className="flex flex-col items-center flex-grow text-white">
+      {session?.type === 'ai' ? (
+        <>
+          <Icons.Info className="mb-4 h-16 w-16 text-primary" />
+          <h2 className="mb-2 text-2xl font-bold">{t('WorkList:AI Assistant')}</h2>
+          <p className="mb-6 text-center text-gray-400">{t('WorkList:Ask questions about medical images')}</p>
+        </>
+      ) : (
+        <>
+          <Icons.Patient className="mb-4 h-16 w-16 text-primary" />
+          <h2 className="mb-2 text-2xl font-bold">{session?.doctorName}医生</h2>
+          <p className="mb-6 text-center text-gray-400">与{session?.doctorName}医生进行会诊</p>
+        </>
+      )}
+
+      {/* Associated image info */}
+      {session?.associatedImage && (
+        <div className="mb-4 p-2 rounded bg-blue-900 text-sm">
+          关联影像: {session.associatedImage}
+        </div>
+      )}
+
       <div className="w-full max-w-2xl space-y-4">
         {/* Chat messages container */}
         <div className="h-64 rounded-lg bg-gray-800 p-4 overflow-y-auto">
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="flex justify-center items-center h-full text-gray-500">
-                {t('AIAssistant:No messages yet. Ask your first question!')}
+                {session?.type === 'ai' ?
+                  t('AIAssistant:No messages yet. Ask your first question!') :
+                  `还没有与${session?.doctorName}医生的消息，开始对话吧！`
+                }
               </div>
             ) : (
               messages.map(message => (
@@ -131,7 +182,7 @@ const AIAssistant: React.FC = () => {
         <div className="flex flex-col space-y-2">
           <textarea
             className="w-full h-40 rounded-lg bg-gray-800 p-4 text-white resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder={t('WorkList:Enter your question here...')}
+            placeholder={session?.type === 'ai' ? t('WorkList:Enter your question here...') : `向${session?.doctorName}医生提问...`}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}

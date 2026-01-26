@@ -11,7 +11,11 @@ interface Doctor {
   description: string;
 }
 
-const DoctorList: React.FC = () => {
+interface DoctorListProps {
+  onDoctorSelect: (doctor: Doctor) => void;
+}
+
+const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect }) => {
   const { t } = useTranslation();
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
 
@@ -56,6 +60,7 @@ const DoctorList: React.FC = () => {
 
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
+    onDoctorSelect(doctor);
   };
 
   const handleInvite = () => {

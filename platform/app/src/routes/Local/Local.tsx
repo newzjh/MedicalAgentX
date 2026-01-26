@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import classnames from 'classnames';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { DicomMetadataStore, MODULE_TYPES, useSystem } from '@ohif/core';
 
 import Dropzone from 'react-dropzone';
@@ -53,6 +53,8 @@ function Local({ modePath }: LocalProps) {
   const { servicesManager } = useSystem();
   const { customizationService } = servicesManager.services;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fileType = searchParams.get('type') || 'dicom';
   const dropzoneRef = useRef();
   const [dropInitiated, setDropInitiated] = React.useState(false);
 
@@ -144,8 +146,9 @@ function Local({ modePath }: LocalProps) {
                 ) : (
                   <div className="space-y-2">
                     <p className="text-primary pt-0 text-xl">
-                      Drag and drop your DICOM files & folders here <br />
-                      to load them locally.
+                      {fileType === 'dicom' 
+                        ? 'Drag and drop your DICOM files & folders here <br /> to load them locally.' 
+                        : 'Drag and drop your medical image files here to load them locally.'}
                     </p>
                     <p className="text-muted-foreground text-base">
                       Note: Your data remains locally within your browser
@@ -155,8 +158,14 @@ function Local({ modePath }: LocalProps) {
                 )}
               </div>
               <div className="flex justify-center gap-2 pt-4">
-                {getLoadButton(onDrop, 'Load files', false)}
-                {getLoadButton(onDrop, 'Load folders', true)}
+                {fileType === 'dicom' ? (
+                  <>
+                    {getLoadButton(onDrop, 'Load files', false)}
+                    {getLoadButton(onDrop, 'Load folders', true)}
+                  </>
+                ) : (
+                  getLoadButton(onDrop, 'Load Files', false)
+                )}
               </div>
             </div>
           </div>
