@@ -34,7 +34,15 @@ import {
   Onboarding,
   ScrollArea,
   InvestigationalUseDialog,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
 } from '@ohif/ui-next';
+
+// Custom components
+import AIAssistant from '../../components/AIAssistant/AIAssistant';
+import WorkflowHistory from '../../components/WorkflowHistory/WorkflowHistory';
 
 import { Types } from '@ohif/ui';
 
@@ -84,6 +92,77 @@ function WorkList({
 
   const debouncedFilterValues = useDebounce(filterValues, 200);
   const { resultsPerPage, pageNumber, sortBy, sortDirection } = filterValues;
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState('studies');
+  // Workflow history state
+  const [workflowHistory, setWorkflowHistory] = useState<Array<{
+    id: string;
+    title: string;
+    description: string;
+    iconName: string;
+    timestamp: string;
+  }>>([]);
+  // Drag state for tab navigation
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+
+  // Tab order for navigation
+  const tabOrder = ['studies', 'assistant', 'workflow'];
+
+  // Handle drag start
+  const handleDragStart = (e) => {
+    // Only start drag if mouse is near left or right edge (within 50px)
+    if (e.clientX < 50 || e.clientX > window.innerWidth - 50) {
+      setIsDragging(true);
+      setStartX(e.clientX);
+    }
+  };
+
+  // Handle drag move
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+
+    const currentX = e.clientX;
+    const diffX = currentX - startX;
+
+    // If dragged more than 100px, switch tabs
+    if (Math.abs(diffX) > 100) {
+      const currentIndex = tabOrder.indexOf(activeTab);
+      let newIndex;
+
+      if (diffX > 0) {
+        // Swipe right - go to previous tab
+        newIndex = currentIndex > 0 ? currentIndex - 1 : tabOrder.length - 1;
+      } else {
+        // Swipe left - go to next tab
+        newIndex = currentIndex < tabOrder.length - 1 ? currentIndex + 1 : 0;
+      }
+
+      setActiveTab(tabOrder[newIndex]);
+      setIsDragging(false);
+    }
+  };
+
+  // Handle drag end
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  // Add drag event listeners
+  useEffect(() => {
+    window.addEventListener('mousedown', handleDragStart);
+    window.addEventListener('mousemove', handleDragMove);
+    window.addEventListener('mouseup', handleDragEnd);
+    window.addEventListener('mouseleave', handleDragEnd);
+
+    return () => {
+      window.removeEventListener('mousedown', handleDragStart);
+      window.removeEventListener('mousemove', handleDragMove);
+      window.removeEventListener('mouseup', handleDragEnd);
+      window.removeEventListener('mouseleave', handleDragEnd);
+    };
+  }, [isDragging, activeTab]);
 
   /*
    * The default sort value keep the filters synchronized with runtime conditional sorting
@@ -339,7 +418,7 @@ function WorkList({
           key: 'instances',
           content: (
             <>
-              <Icons.GroupLayers
+              <Icons.ViewportViews
                 className={classnames('mr-2 inline-flex w-4', {
                   'text-primary': isExpanded,
                   'text-secondary-light': !isExpanded,
@@ -437,7 +516,7 @@ function WorkList({
                     {/* TODO revisit the completely rounded style of buttons used for launching a mode from the worklist later */}
                     <Button
                       type={ButtonEnums.type.primary}
-                      size={ButtonEnums.size.smallTall}
+                      size={ButtonEnums.size.small}
                       disabled={!isValidMode}
                       startIconTooltip={
                         !isValidMode ? (
@@ -565,65 +644,98 @@ function WorkList({
       <div className="flex h-full flex-col overflow-y-auto">
         <ScrollArea>
           <div className="flex grow flex-col">
-            <StudyListFilter
-              numOfStudies={pageNumber * resultsPerPage > 100 ? 101 : numOfStudies}
-              filtersMeta={filtersMeta}
-              filterValues={{ ...filterValues, ...defaultSortValues }}
-              onChange={setFilterValues}
-              clearFilters={() => setFilterValues(defaultFilterValues)}
-              isFiltering={isFiltering(filterValues, defaultFilterValues)}
-              onUploadClick={uploadProps ? () => show(uploadProps) : undefined}
-              getDataSourceConfigurationComponent={
-                dataSourceConfigurationComponent
-                  ? () => dataSourceConfigurationComponent()
-                  : undefined
-              }
-            />
-            <div className="flex justify-center gap-2 p-4">
-              <Button
-                type={ButtonEnums.type.primary}
-                size={ButtonEnums.size.smallTall}
-                onClick={() => navigate('/local')}
-                startIcon={<Icons.Upload />}
-              >
-                Load DICOM Files
-              </Button>
-              <Button
-                type={ButtonEnums.type.primary}
-                size={ButtonEnums.size.smallTall}
-                onClick={() => navigate('/local')}
-                startIcon={<Icons.Upload />}
-              >
-                Load NRRD Files
-              </Button>
-            </div>
-          </div>
-          {hasStudies ? (
-            <div className="flex grow flex-col">
-              <StudyListTable
-                tableDataSource={tableDataSource.slice(offset, offsetAndTake)}
-                numOfStudies={numOfStudies}
-                querying={querying}
-                filtersMeta={filtersMeta}
-              />
-              <div className="grow">
-                <StudyListPagination
-                  onChangePage={onPageNumberChange}
-                  onChangePerPage={onResultsPerPageChange}
-                  currentPage={pageNumber}
-                  perPage={resultsPerPage}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="studies">
+                  <Icons.TabStudies className="mr-2 h-4 w-4" />
+                  {t('StudyList:Study List')}
+                </TabsTrigger>
+                <TabsTrigger value="assistant">
+                  <Icons.Info className="mr-2 h-4 w-4" />
+                  {t('WorkList:AI Assistant')}
+                </TabsTrigger>
+                <TabsTrigger value="workflow">
+                  <Icons.StatusTracking className="mr-2 h-4 w-4" />
+                  {t('WorkList:Workflow')}
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Study List Tab */}
+              <TabsContent value="studies" className="flex grow flex-col">
+                <StudyListFilter
+                  numOfStudies={pageNumber * resultsPerPage > 100 ? 101 : numOfStudies}
+                  filtersMeta={filtersMeta}
+                  filterValues={{ ...filterValues, ...defaultSortValues }}
+                  onChange={setFilterValues}
+                  clearFilters={() => setFilterValues(defaultFilterValues)}
+                  isFiltering={isFiltering(filterValues, defaultFilterValues)}
+                  onUploadClick={uploadProps ? () => show(uploadProps) : undefined}
+                  getDataSourceConfigurationComponent={
+                    dataSourceConfigurationComponent
+                      ? () => dataSourceConfigurationComponent()
+                      : undefined
+                  }
                 />
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center pt-48">
-              {appConfig.showLoadingIndicator && isLoadingData ? (
-                <LoadingIndicatorProgress className={'h-full w-full bg-black'} />
-              ) : (
-                <EmptyStudies />
-              )}
-            </div>
-          )}
+                <div className="flex justify-center gap-2 p-4">
+                  <Button
+                    type={ButtonEnums.type.primary}
+                    size={ButtonEnums.size.small}
+                    onClick={() => navigate('/local')}
+                    startIcon={<Icons.Upload />}
+                  >
+                    Load DICOM Files
+                  </Button>
+                  <Button
+                    type={ButtonEnums.type.primary}
+                    size={ButtonEnums.size.small}
+                    onClick={() => navigate('/local')}
+                    startIcon={<Icons.Upload />}
+                  >
+                    Load NRRD Files
+                  </Button>
+                </div>
+                {hasStudies ? (
+                  <div className="flex grow flex-col">
+                    <StudyListTable
+                      tableDataSource={tableDataSource.slice(offset, offsetAndTake)}
+                      numOfStudies={numOfStudies}
+                      querying={querying}
+                      filtersMeta={filtersMeta}
+                    />
+                    <div className="grow">
+                      <StudyListPagination
+                        onChangePage={onPageNumberChange}
+                        onChangePerPage={onResultsPerPageChange}
+                        currentPage={pageNumber}
+                        perPage={resultsPerPage}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center pt-48">
+                    {appConfig.showLoadingIndicator && isLoadingData ? (
+                      <LoadingIndicatorProgress className={'h-full w-full bg-black'} />
+                    ) : (
+                      <EmptyStudies />
+                    )}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* AI Assistant Tab */}
+              <TabsContent value="assistant" className="flex grow flex-col p-4">
+                <AIAssistant />
+              </TabsContent>
+
+              {/* Workflow Tab */}
+              <TabsContent value="workflow" className="flex grow flex-col p-4">
+                <WorkflowHistory
+                  workflowHistory={workflowHistory}
+                  onClearHistory={() => setWorkflowHistory([])}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
         </ScrollArea>
       </div>
     </div>
