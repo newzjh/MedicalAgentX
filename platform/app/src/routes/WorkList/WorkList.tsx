@@ -172,7 +172,17 @@ function WorkList({
   const { resultsPerPage, pageNumber, sortBy, sortDirection } = filterValues;
 
   // Tab state
-  const [activeTab, setActiveTab] = useState('assistant');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Initialize with saved tab from localStorage if available
+    const savedTab = localStorage.getItem('lastActiveTab');
+    return savedTab || 'assistant';
+  });
+  
+  // Save active tab to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('lastActiveTab', activeTab);
+  }, [activeTab]);
+
   // Workflow history state from Zustand store
   const { workflowHistory, addWorkflowItem, clearWorkflowHistory } = useWorkflowHistoryStore();
   // Drag state for tab navigation
@@ -1111,7 +1121,11 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local?type=dicom&action=loadFolder')}
+                    onClick={() => {
+                      // Store current tab before navigation
+                      localStorage.setItem('lastActiveTab', activeTab);
+                      navigate('/local?type=dicom&action=loadFolder');
+                    }}
                     startIcon={<Icons.Upload />}
                   >
                     Load DICOM Files
@@ -1119,7 +1133,11 @@ function WorkList({
                   <Button
                     type={ButtonEnums.type.primary}
                     size={ButtonEnums.size.small}
-                    onClick={() => navigate('/local?type=dicom&action=loadFile')}
+                    onClick={() => {
+                      // Store current tab before navigation
+                      localStorage.setItem('lastActiveTab', activeTab);
+                      navigate('/local?type=files&action=loadFile');
+                    }}
                     startIcon={<Icons.Upload />}
                   >
                     Load Files
@@ -1162,7 +1180,7 @@ function WorkList({
                     size={ButtonEnums.size.small}
                     onClick={() => {
                       // Store the current tab and session ID before navigation
-                      localStorage.setItem('lastActiveTab', 'assistant');
+                      localStorage.setItem('lastActiveTab', activeTab);
                       if (currentSession) {
                         localStorage.setItem('lastSessionId', currentSession.id);
                         console.log('[WorkList] 点击Load DICOM按钮 - 当前会话ID:', currentSession.id);
@@ -1179,13 +1197,13 @@ function WorkList({
                     size={ButtonEnums.size.small}
                     onClick={() => {
                       // Store the current tab and session ID before navigation
-                      localStorage.setItem('lastActiveTab', 'assistant');
+                      localStorage.setItem('lastActiveTab', activeTab);
                       if (currentSession) {
                         localStorage.setItem('lastSessionId', currentSession.id);
                         console.log('[WorkList] 点击Load Files按钮 - 当前会话ID:', currentSession.id);
                         console.log('[WorkList] 点击Load Files按钮 - 当前关联影像:', currentSession.associatedImage);
                       }
-                      navigate('/local?type=dicom&action=loadFile');
+                      navigate('/local?type=files&action=loadFile');
                     }}
                     startIcon={<Icons.Upload />}
                   >

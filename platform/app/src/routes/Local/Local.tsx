@@ -10,7 +10,7 @@ import { extensionManager } from '../../App';
 
 import { Button, Icons } from '@ohif/ui-next';
 
-const getLoadButton = (onDrop, text, isDir, ref) => {
+const getLoadButton = (onDrop, text, isDir, ref, fileType) => {
   return (
     <Dropzone
       onDrop={onDrop}
@@ -21,6 +21,12 @@ const getLoadButton = (onDrop, text, isDir, ref) => {
         const inputProps = getInputProps();
         // Remove ref from input props to avoid overriding our ref
         delete inputProps.ref;
+
+        // Set file accept filter for non-DICOM files
+        let accept = '';
+        if (!isDir && fileType !== 'dicom') {
+          accept = '.nrrd,.nii,.nii.gz,.mha,.mhd,.hdr,.img,.tif,.tiff,.png,.jpg,.jpeg';
+        }
 
         return (
           <div {...getRootProps()}>
@@ -43,6 +49,7 @@ const getLoadButton = (onDrop, text, isDir, ref) => {
                 <input
                   ref={ref}
                   {...inputProps}
+                  accept={accept}
                   style={{ display: 'none' }}
                 />
               )}
@@ -204,11 +211,11 @@ function Local({ modePath }: LocalProps) {
               <div className="flex justify-center gap-2 pt-4">
                 {fileType === 'dicom' ? (
                   <>
-                    {getLoadButton(onDrop, 'Load files', false, fileInputRef)}
-                    {getLoadButton(onDrop, 'Load folders', true, folderInputRef)}
+                    {getLoadButton(onDrop, 'Load files', false, fileInputRef, fileType)}
+                    {getLoadButton(onDrop, 'Load folders', true, folderInputRef, fileType)}
                   </>
                 ) : (
-                  getLoadButton(onDrop, 'Load Files', false, fileInputRef)
+                  getLoadButton(onDrop, 'Load Files', false, fileInputRef, fileType)
                 )}
               </div>
             </div>
