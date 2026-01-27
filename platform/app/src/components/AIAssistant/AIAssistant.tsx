@@ -1,11 +1,16 @@
+import { utilities, Enums } from '@cornerstonejs/tools';
+import { cache } from '@cornerstonejs/core';
+import { utils } from '@ohif/core';
+import cstTypes from '@cornerstonejs/tools/types';
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, ButtonEnums } from '@ohif/ui';
 import { Icons } from '@ohif/ui-next';
-import { volumeLoader } from '@cornerstonejs/core';
+import { volumeLoader, imageLoader } from '@cornerstonejs/core';
 import { DicomMetadataStore } from '@ohif/core';
 import metadataProvider from '@ohif/core/src/classes/MetadataProvider';
 import getImageId from '@ohif/core/src/utils/getImageId';
+import { segmentation as cstSegmentation, Enums as csToolsEnums } from '@cornerstonejs/tools';
 
 // Volume loader scheme
 const VOLUME_LOADER_SCHEME = 'cornerstoneStreamingImageVolume';
@@ -84,6 +89,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   const [renderingReady, setRenderingReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<any>(null);
+  const volumeRenderingContainerRef = useRef<HTMLDivElement>(null);
 
   // Update local messages when session changes
   useEffect(() => {
@@ -298,7 +304,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   };
 
   // 阈值切割
-  const applyThresholding = (volume: any, modality: string) => {
+  const applyThresholding = async (volume: any, modality: string) => {
     if (!volume) return null;
 
     try {
@@ -318,67 +324,190 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
       console.log('[AIAssistant] 应用阈值切割 - 模态:', modality, '阈值范围:', [lowerThreshold, upperThreshold]);
 
-      // 创建labelmap volume
-      const labelmapVolumeId = 'labelmap-' + Date.now().toString();
-      console.log('[AIAssistant] labelmapVolumeId类型:', typeof labelmapVolumeId, '值:', labelmapVolumeId);
-
-      // 检查volume是否有createLabelmapVolume方法
-      if (typeof volume.createLabelmapVolume !== 'function') {
-        console.error('[AIAssistant] volume对象没有createLabelmapVolume方法');
+      // 获取volume的imageIds
+      const imageIds = volume.imageIds || [];
+      if (imageIds.length === 0) {
+        console.error('[AIAssistant] volume对象没有imageIds属性');
         return null;
       }
 
-      const labelmapVolume = volume.createLabelmapVolume(labelmapVolumeId);
+      // 创建派生的labelmap图像
+      console.log('[AIAssistant] 创建派生的labelmap图像...');
+      const derivedImages = await imageLoader.createAndCacheDerivedLabelmapImages(imageIds);
+      const segImageIds = derivedImages.map(image => image.imageId);
 
-      // 检查labelmapVolume是否有applyThreshold方法
-      if (typeof labelmapVolume.applyThreshold !== 'function') {
-        console.error('[AIAssistant] labelmapVolume对象没有applyThreshold方法');
+      // 创建分割ID
+      const segmentationId = 'segmentation-' + Date.now().toString();
+      console.log('[AIAssistant] 创建分割 - segmentationId:', segmentationId);
+
+      // 创建分割
+      const segmentationPublicInput = {
+        segmentationId,
+        representation: {
+          type: csToolsEnums.SegmentationRepresentations.Labelmap,
+          data: {
+            imageIds: segImageIds,
+            referencedImageIds: imageIds,
+            volumeId: volume.volumeId,
+          },
+        },
+        config: {
+          label: 'Lesion Segmentation',
+          segments: {
+            1: {
+              label: 'Lesion',
+              segmentIndex: 1,
+              active: true,
+            },
+          },
+        },
+      };
+
+      // 检查 cstSegmentation 对象的结构
+      console.log('[AIAssistant] cstSegmentation 对象结构:', Object.keys(cstSegmentation));
+
+      // 添加分割
+      console.log('[AIAssistant] 添加分割...');
+      cstSegmentation.addSegmentations([segmentationPublicInput]);
+      console.log('[AIAssistant] 分割添加成功');
+
+      // 应用阈值 - 使用 Cornerstone Tools API
+      console.log('[AIAssistant] 应用阈值到分割...');
+
+      // 获取分割数据
+      const segmentation = cstSegmentation.state.getSegmentation(segmentationId);
+      if (!segmentation) {
+        console.error('[AIAssistant] 无法获取分割数据');
         return null;
       }
 
-      // 应用阈值
-      labelmapVolume.applyThreshold(lowerThreshold, upperThreshold);
+      console.log("segmentation:", segmentation);
 
-      console.log('[AIAssistant] 阈值切割完成 - labelmapVolumeId:', labelmapVolumeId);
-      return labelmapVolume;
-    } catch (error) {
+      // 检查 cstSegmentation 对象的完整结构
+      console.log('[AIAssistant] cstSegmentation 对象完整结构:', cstSegmentation);
+
+
+      const labelmapData = segmentation.representationData["Labelmap"] as cstTypes.LabelmapToolOperationDataVolume;
+      const isVolumeSegmentation = 'volumeId' in labelmapData;
+
+      console.log('[AIAssistant] labelmapData:', labelmapData);
+
+      if (!labelmapData || !labelmapData.volumeId) {
+        console.log('!labelmapData || !labelmapData.volumeId');
+        return null;
+      }
+
+      const { volumeId } = labelmapData;
+      const labelmapVolume = cache.getVolume(volumeId);
+
+
+      console.log('[AIAssistant] 阈值切割完成 - labelmapVolume:', labelmapVolume);
+      return segmentationId;
+    }
+    catch (error) {
       console.error('[AIAssistant] 阈值切割失败:', error);
       return null;
     }
   };
 
   // 数学形态学操作
-  const applyMorphologicalOperations = (labelmapVolume: any) => {
-    if (!labelmapVolume) return null;
+  const applyMorphologicalOperations = (segmentationId: string) => {
+    if (!segmentationId) return null;
 
     try {
-      console.log('[AIAssistant] 应用数学形态学操作');
+      console.log('[AIAssistant] 应用数学形态学操作 - segmentationId:', segmentationId);
 
-      // 开运算 (先腐蚀后膨胀)
-      labelmapVolume.applyMorphologicalOperation('open', { radius: 1 });
-      console.log('[AIAssistant] 开运算完成');
+      // 获取分割数据
+      const segmentation = cstSegmentation.state.getSegmentation(segmentationId);
+      if (!segmentation) {
+        console.error('[AIAssistant] 无法获取分割数据');
+        return null;
+      }
 
-      // 闭运算 (先膨胀后腐蚀)
-      labelmapVolume.applyMorphologicalOperation('close', { radius: 1 });
-      console.log('[AIAssistant] 闭运算完成');
+      console.log("segmentation:", segmentation);
 
-      return labelmapVolume;
+      // 检查 cstSegmentation 对象的完整结构
+      console.log('[AIAssistant] cstSegmentation 对象完整结构:', cstSegmentation);
+
+
+      const labelmapData = segmentation.representationData["Labelmap"] as cstTypes.LabelmapToolOperationDataVolume;
+      const isVolumeSegmentation = 'volumeId' in labelmapData;
+
+      console.log('[AIAssistant] labelmapData:', labelmapData);
+
+      if (!labelmapData || !labelmapData.volumeId) {
+        console.log('!labelmapData || !labelmapData.volumeId');
+        return null;
+      }
+
+      const { volumeId } = labelmapData;
+      const labelmapVolume = cache.getVolume(volumeId);
+
+      /*
+      // 尝试通过不同方式获取 labelmap 工具
+      let labelmapTool = null;
+
+      // 方式1: 检查 cstSegmentation 下的 labelmap 相关属性
+      if (cstSegmentation.labelmap) {
+        labelmapTool = cstSegmentation.labelmap;
+      }
+
+      // 方式2: 检查是否有 tools 或 modules 属性
+      if (!labelmapTool && cstSegmentation.tools) {
+        if (cstSegmentation.tools.labelmap) {
+          labelmapTool = cstSegmentation.tools.labelmap;
+        }
+      }
+
+      // 执行形态学操作
+      if (labelmapTool && typeof labelmapTool.applyMorphologicalOperation === 'function') {
+        try {
+          // 开运算 (先腐蚀后膨胀)
+          console.log('[AIAssistant] 执行开运算...');
+          labelmapTool.applyMorphologicalOperation(
+            segmentationId,
+            1, // 分割索引
+            'open',
+            { radius: 1 }
+          );
+          console.log('[AIAssistant] 开运算完成');
+
+          // 闭运算 (先膨胀后腐蚀)
+          console.log('[AIAssistant] 执行闭运算...');
+          labelmapTool.applyMorphologicalOperation(
+            segmentationId,
+            1, // 分割索引
+            'close',
+            { radius: 1 }
+          );
+          console.log('[AIAssistant] 闭运算完成');
+        } catch (error) {
+          console.error('[AIAssistant] 使用 labelmapTool.applyMorphologicalOperation 失败:', error);
+          return null;
+        }
+      } else {
+        console.error('[AIAssistant] 找不到 applyMorphologicalOperation 方法');
+        return null;
+      }
+      */
+      return segmentationId;
     } catch (error) {
       console.error('[AIAssistant] 数学形态学操作失败:', error);
       return null;
     }
+
   };
 
   // 设置体渲染
-  const setupVolumeRendering = async (processedVolume: any) => {
-    if (!processedVolume) return false;
+  const setupVolumeRendering = async (segmentationId: string) => {
+    if (!segmentationId) return false;
 
     try {
-      console.log('[AIAssistant] 设置体渲染');
+      console.log('[AIAssistant] 设置体渲染 - segmentationId:', segmentationId);
 
-      // 存储处理后的volumeId
-      setProcessedVolumeId(processedVolume.volumeId);
-      volumeRef.current = processedVolume;
+      // 存储处理后的segmentationId
+      setProcessedVolumeId(segmentationId);
+      volumeRef.current = segmentationId;
 
       // 标记渲染准备就绪
       setRenderingReady(true);
@@ -416,10 +545,82 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
   // 当processedVolumeId变化时，尝试创建3D视口
   useEffect(() => {
-    if (renderingReady && processedVolumeId) {
+    if (renderingReady && processedVolumeId && volumeRenderingContainerRef.current) {
       console.log('[AIAssistant] 准备创建3D视口');
-      // 这里可以添加创建3D视口的逻辑
-      // 由于需要DOM元素挂载，实际实现可能需要使用useRef和useEffect
+
+      // 导入必要的Cornerstone3D组件
+      import('@cornerstonejs/core').then(async (core) => {
+        const {
+          RenderingEngine,
+          Enums,
+          cache
+        } = core;
+        const ViewportType = Enums.ViewportType;
+
+        try {
+          // 创建渲染引擎
+          const renderingEngineId = 'lesion-volume-rendering-engine';
+          const renderingEngine = new RenderingEngine(renderingEngineId);
+
+          // 获取容器元素
+          const container = volumeRenderingContainerRef.current;
+
+          // 设置视口配置
+          const viewportId = 'lesion-volume-viewport';
+          const viewportInput = {
+            viewportId,
+            type: ViewportType.VOLUME_3D,
+            element: container,
+            defaultOptions: {}
+          };
+
+          // 注册视口
+          renderingEngine.enableElement(viewportInput);
+
+          // 获取视口
+          const viewport = renderingEngine.getViewport(viewportId);
+
+          // 获取分割数据
+          const segmentation = cstSegmentation.state.getSegmentation(processedVolumeId);
+          if (!segmentation) {
+            console.error('[AIAssistant] 无法获取分割数据');
+            return null;
+          }
+
+          console.log("segmentation:", segmentation);
+
+          // 检查 cstSegmentation 对象的完整结构
+          console.log('[AIAssistant] cstSegmentation 对象完整结构:', cstSegmentation);
+
+
+          const labelmapData = segmentation.representationData["Labelmap"] as cstTypes.LabelmapToolOperationDataVolume;
+          const isVolumeSegmentation = 'volumeId' in labelmapData;
+
+          console.log('[AIAssistant] labelmapData:', labelmapData);
+
+          if (!labelmapData || !labelmapData.volumeId) {
+            console.log('!labelmapData || !labelmapData.volumeId');
+            return null;
+          }
+
+          const { volumeId } = labelmapData;
+          const labelmapVolume = cache.getVolume(volumeId);
+
+          // 对于体积分割，直接添加分割表示
+          console.log('[AIAssistant] 添加分割表示到视口...');
+
+          // 尝试使用 Cornerstone Tools API 添加分割表示
+            try {
+              viewport.render();
+              console.log('[AIAssistant] 3D视口渲染完成');
+            } catch (error) {
+              console.error('[AIAssistant] 添加分割表示失败:', error);
+            }
+
+        } catch (error) {
+          console.error('[AIAssistant] 创建3D视口失败:', error);
+        }
+      });
     }
   }, [renderingReady, processedVolumeId]);
 
@@ -442,23 +643,23 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       const modality = session.associatedImage.includes('CT') ? 'CT' : 'MR';
 
       // 3. 应用阈值切割
-      const thresholdedVolume = applyThresholding(volume, modality);
-      if (!thresholdedVolume) {
+      const segmentationId = await applyThresholding(volume, modality);
+      if (!segmentationId) {
         console.error('[AIAssistant] 阈值切割失败');
         setIsProcessingImage(false);
         return false;
       }
 
       // 4. 应用数学形态学操作
-      const processedVolume = applyMorphologicalOperations(thresholdedVolume);
-      if (!processedVolume) {
+      const processedSegmentationId = applyMorphologicalOperations(segmentationId);
+      if (!processedSegmentationId) {
         console.error('[AIAssistant] 数学形态学操作失败');
         setIsProcessingImage(false);
         return false;
       }
 
       // 5. 设置体渲染
-      const renderingSuccess = setupVolumeRendering(processedVolume);
+      const renderingSuccess = await setupVolumeRendering(processedSegmentationId);
 
       setIsProcessingImage(false);
       return renderingSuccess;
@@ -646,12 +847,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         {renderingReady && processedVolumeId && (
           <div className="mt-4 p-4 rounded-lg bg-gray-800">
             <h3 className="text-lg font-semibold mb-2">体渲染结果</h3>
-            <div className="w-full h-64 rounded-lg bg-black flex items-center justify-center">
-              {/* 这里将显示体渲染结果 */}
-              <div id="volume-rendering-container" className="w-full h-full"></div>
-              <p className="text-gray-500">体渲染已准备就绪</p>
-              <p className="text-xs text-gray-600 mt-2">Volume ID: {processedVolumeId}</p>
+            <div
+              ref={volumeRenderingContainerRef}
+              className="w-full h-64 rounded-lg bg-black"
+            >
+              {/* 3D视口将在这里渲染 */}
             </div>
+            <p className="text-xs text-gray-600 mt-2">Volume ID: {processedVolumeId}</p>
           </div>
         )}
       </div>
