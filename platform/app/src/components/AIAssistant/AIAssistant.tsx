@@ -1,6 +1,7 @@
 import { utilities, Enums } from '@cornerstonejs/tools';
 import { cache } from '@cornerstonejs/core';
 import { utils } from '@ohif/core';
+import * as csTools from '@cornerstonejs/tools';
 import cstTypes from '@cornerstonejs/tools/types';
 import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +12,7 @@ import { DicomMetadataStore } from '@ohif/core';
 import metadataProvider from '@ohif/core/src/classes/MetadataProvider';
 import getImageId from '@ohif/core/src/utils/getImageId';
 import { segmentation as cstSegmentation, Enums as csToolsEnums } from '@cornerstonejs/tools';
+import { getImageDataMetadata } from '@cornerstonejs/core/utilities';
 
 // Volume loader scheme
 const VOLUME_LOADER_SCHEME = 'cornerstoneStreamingImageVolume';
@@ -371,8 +373,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       cstSegmentation.addSegmentations([segmentationPublicInput]);
       console.log('[AIAssistant] 分割添加成功');
 
-      // 应用阈值 - 使用 Cornerstone Tools API
-      console.log('[AIAssistant] 应用阈值到分割...');
 
       // 获取分割数据
       const segmentation = cstSegmentation.state.getSegmentation(segmentationId);
@@ -399,6 +399,16 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
       const { volumeId } = labelmapData;
       const labelmapVolume = cache.getVolume(volumeId);
+
+      // 应用阈值 - 使用 Cornerstone Tools API
+
+        csTools.utilities.segmentation.thresholdVolumeByRange(
+        labelmapVolume,
+        [
+          { volume: volume, lower: lowerThreshold, upper: upperThreshold },
+        ],
+        { overwrite: true, segmentIndex: 1, segmentationId }
+      );
 
 
       console.log('[AIAssistant] 阈值切割完成 - labelmapVolume:', labelmapVolume);

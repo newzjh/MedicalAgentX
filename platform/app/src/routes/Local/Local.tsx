@@ -34,7 +34,11 @@ const getLoadButton = (onDrop, text, isDir, ref, fileType) => {
               variant="default"
               className="w-28"
               disabled={false}
-              onClick={() => {}}
+              onClick={() => {
+                if (ref.current) {
+                  ref.current.click();
+                }
+              }}
             >
               {text}
               {isDir ? (
