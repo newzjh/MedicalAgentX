@@ -330,59 +330,9 @@ function WorkList({
   // Tab order for navigation
   const tabOrder = ['studies', 'assistant', 'workflow', 'consultation', 'reports'];
 
-  // Handle drag start
-  const handleDragStart = (e) => {
-    // Only start drag if mouse is near left or right edge (within 50px)
-    if (e.clientX < 50 || e.clientX > window.innerWidth - 50) {
-      setIsDragging(true);
-      setStartX(e.clientX);
-    }
-  };
 
-  // Handle drag move
-  const handleDragMove = (e) => {
-    if (!isDragging) return;
 
-    const currentX = e.clientX;
-    const diffX = currentX - startX;
 
-    // If dragged more than 100px, switch tabs
-    if (Math.abs(diffX) > 100) {
-      const currentIndex = tabOrder.indexOf(activeTab);
-      let newIndex;
-
-      if (diffX > 0) {
-        // Swipe right - go to previous tab
-        newIndex = currentIndex > 0 ? currentIndex - 1 : tabOrder.length - 1;
-      } else {
-        // Swipe left - go to next tab
-        newIndex = currentIndex < tabOrder.length - 1 ? currentIndex + 1 : 0;
-      }
-
-      setActiveTab(tabOrder[newIndex]);
-      setIsDragging(false);
-    }
-  };
-
-  // Handle drag end
-  const handleDragEnd = () => {
-    setIsDragging(false);
-  };
-
-  // Add drag event listeners
-  useEffect(() => {
-    window.addEventListener('mousedown', handleDragStart);
-    window.addEventListener('mousemove', handleDragMove);
-    window.addEventListener('mouseup', handleDragEnd);
-    window.addEventListener('mouseleave', handleDragEnd);
-
-    return () => {
-      window.removeEventListener('mousedown', handleDragStart);
-      window.removeEventListener('mousemove', handleDragMove);
-      window.removeEventListener('mouseup', handleDragEnd);
-      window.removeEventListener('mouseleave', handleDragEnd);
-    };
-  }, [isDragging, activeTab]);
 
   /*
    * The default sort value keep the filters synchronized with runtime conditional sorting
