@@ -2,10 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, ButtonEnums } from '@ohif/ui';
 import { Icons } from '@ohif/ui-next';
-import { volumeLoader, cache, segmentation, Enums } from '@cornerstonejs/core';
-import * as cstSegmentation from '@cornerstonejs/tools';
-import { LABELMAP } from '@cornerstonejs/tools';
-import { cornerstoneViewportService, DicomMetadataStore } from '@ohif/core';
+import { volumeLoader } from '@cornerstonejs/core';
+import { DicomMetadataStore } from '@ohif/core';
+import metadataProvider from '@ohif/core/src/classes/MetadataProvider';
 import getImageId from '@ohif/core/src/utils/getImageId';
 
 // Volume loader scheme
@@ -204,9 +203,35 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     const imageIds = [];
     study.series.forEach(series => {
       series.instances.forEach(instance => {
-        const imageId = getImageId(instance);
-        if (imageId) {
-          imageIds.push(imageId);
+        try {
+          const imageId = getImageId(instance, undefined, false);
+          if (imageId && typeof imageId === 'string') {
+            imageIds.push(imageId);
+
+            // 将生成的imageId存储回实例对象，这样MetadataProvider就能访问它了
+            if (!instance.imageId) {
+              instance.imageId = imageId;
+            }
+
+            // 同步添加imageId到metadataProvider
+            if (metadataProvider && typeof metadataProvider.addImageIdToUIDs === 'function') {
+              try {
+                // 构造uids对象，包含必要的UID信息
+                const uids = {
+                  StudyInstanceUID: instance.StudyInstanceUID,
+                  SeriesInstanceUID: instance.SeriesInstanceUID,
+                  SOPInstanceUID: instance.SOPInstanceUID
+                };
+                metadataProvider.addImageIdToUIDs(imageId, uids);
+              } catch (error) {
+                console.error('[AIAssistant] 添加imageId到metadataProvider失败:', error);
+              }
+            }
+          } else {
+            console.warn('[AIAssistant] 无效的imageId:', imageId);
+          }
+        } catch (error) {
+          console.error('[AIAssistant] 生成imageId失败:', error);
         }
       });
     });
@@ -233,7 +258,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       return null;
     }
 
-    console.log('[AIAssistant] imageIds数量:', imageIds.length);
+    // 验证imageIds中的每个元素都是字符串
+    const validImageIds = imageIds.filter(id => typeof id === 'string' && id.trim() !== '');
+    if (validImageIds.length === 0) {
+      console.error('[AIAssistant] 所有imageId都是无效的');
+      return null;
+    }
+
+    console.log('[AIAssistant] imageIds数量:', validImageIds.length);
+    console.log('[AIAssistant] 第一个imageId:', validImageIds[0]);
 
     // 创建volume加载参数
     // 参考CornerstoneCacheService的实现
@@ -243,17 +276,23 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     // 加载volume - 参考CornerstoneCacheService的实现
     try {
       // 使用两个参数的形式，与CornerstoneCacheService保持一致
+      console.log('[AIAssistant] 开始加载volume...');
+      console.log('[AIAssistant] 传入的imageIds数量:', validImageIds.length);
+
       const volume = await volumeLoader.createAndCacheVolume(volumeId, {
-        imageIds: imageIds,
+        imageIds: validImageIds,
       });
 
       // 加载volume数据
+      console.log('[AIAssistant] 开始加载volume数据...');
       await volume.load();
 
       console.log('[AIAssistant] 关联影像加载完成 - volumeId:', volumeId);
       return volume;
     } catch (error) {
       console.error('[AIAssistant] 加载关联影像失败:', error);
+      console.error('[AIAssistant] 错误详情:', error.message);
+      console.error('[AIAssistant] 错误堆栈:', error.stack);
       return null;
     }
   };
@@ -358,12 +397,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   // 清理资源
   const cleanupResources = () => {
     if (processedVolumeId) {
-      try {
-        cache.removeVolume(processedVolumeId);
-        console.log('[AIAssistant] 清理volume资源 - volumeId:', processedVolumeId);
-      } catch (error) {
-        console.error('[AIAssistant] 清理volume资源失败:', error);
-      }
+      console.log('[AIAssistant] 清理volume资源 - volumeId:', processedVolumeId);
+      // 注意：cache.removeVolume 方法不存在，Cornerstone会自动管理缓存
+      // 我们只需要清理本地引用即可
     }
 
     setProcessedVolumeId(null);

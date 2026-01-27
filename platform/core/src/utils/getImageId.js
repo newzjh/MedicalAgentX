@@ -43,12 +43,19 @@ export default function getImageId(instance, frame, thumbnail = false) {
   const renderingAttr = thumbnail ? 'thumbnailRendering' : 'imageRendering';
 
   if (!instance[renderingAttr] || instance[renderingAttr] === 'wadouri' || !instance.wadorsuri) {
-    let imageId = 'dicomweb:' + instance.wadouri;
-    if (frame !== undefined) {
-      imageId += '&frame=' + frame;
-    }
+    if (instance.wadouri) {
+      let imageId = 'dicomweb:' + instance.wadouri;
+      if (frame !== undefined) {
+        imageId += '&frame=' + frame;
+      }
 
-    return imageId;
+      return imageId;
+    } else if (instance.wadorsuri) {
+      return getWADORSImageId(instance, frame, thumbnail); // WADO-RS Retrieve Frame
+    } else {
+      // 如果既没有wadouri也没有wadorsuri，返回undefined
+      return;
+    }
   } else {
     return getWADORSImageId(instance, frame, thumbnail); // WADO-RS Retrieve Frame
   }
