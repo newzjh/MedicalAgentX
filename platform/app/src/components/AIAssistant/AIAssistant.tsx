@@ -88,6 +88,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [processedVolumeId, setProcessedVolumeId] = useState<string | null>(null);
+  const [originalVolumeId, setOriginalVolumeId] = useState<string | null>(null);
   const [renderingReady, setRenderingReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<any>(null);
@@ -401,7 +402,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       const labelmapVolume = cache.getVolume(volumeId);
 
       // 应用阈值 - 使用 Cornerstone Tools API
-
+      /*
         csTools.utilities.segmentation.thresholdVolumeByRange(
         labelmapVolume,
         [
@@ -409,7 +410,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         ],
         { overwrite: true, segmentIndex: 1, segmentationId }
       );
-
+*/
 
       console.log('[AIAssistant] 阈值切割完成 - labelmapVolume:', labelmapVolume);
       return segmentationId;
@@ -542,6 +543,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     }
 
     setProcessedVolumeId(null);
+    setOriginalVolumeId(null);
     setRenderingReady(false);
     volumeRef.current = null;
   };
@@ -553,9 +555,9 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     };
   }, []);
 
-  // 当processedVolumeId变化时，尝试创建3D视口
+  // 当processedVolumeId或originalVolumeId变化时，尝试创建3D视口
   useEffect(() => {
-    if (renderingReady && processedVolumeId && volumeRenderingContainerRef.current) {
+    if (renderingReady && processedVolumeId && originalVolumeId && volumeRenderingContainerRef.current) {
       console.log('[AIAssistant] 准备创建3D视口');
 
       // 导入必要的Cornerstone3D组件
@@ -590,6 +592,26 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
           // 获取视口
           const viewport = renderingEngine.getViewport(viewportId);
 
+          // 1. 先添加原始volume并渲染
+          console.log('[AIAssistant] 添加原始volume到视口...');
+          const originalVolume = cache.getVolume(originalVolumeId);
+          if (originalVolume) {
+            // 使用类型断言确保TypeScript知道这是VolumeViewport
+            const volumeViewport = viewport as any;
+            if (volumeViewport.setVolumes) {
+              volumeViewport.setVolumes([{ volumeId: originalVolumeId }]);
+              volumeViewport.render();
+              console.log('[AIAssistant] 原始volume渲染完成');
+            } else {
+              console.error('[AIAssistant] 视口不支持setVolumes方法');
+            }
+          } else {
+            console.error('[AIAssistant] 无法获取原始volume');
+          }
+
+          // 2. 再添加分割表示
+          console.log('[AIAssistant] 添加分割表示到视口...');
+
           // 获取分割数据
           const segmentation = cstSegmentation.state.getSegmentation(processedVolumeId);
           if (!segmentation) {
@@ -616,23 +638,31 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
           const { volumeId } = labelmapData;
           const labelmapVolume = cache.getVolume(volumeId);
 
-          // 对于体积分割，直接添加分割表示
-          console.log('[AIAssistant] 添加分割表示到视口...');
-
-          // 尝试使用 Cornerstone Tools API 添加分割表示
-            try {
-              viewport.render();
-              console.log('[AIAssistant] 3D视口渲染完成');
-            } catch (error) {
-              console.error('[AIAssistant] 添加分割表示失败:', error);
+          // 对于体积分割，添加分割表示
+          try {
+            // 使用类型断言确保TypeScript知道这是VolumeViewport
+            const volumeViewport = viewport as any;
+            if (volumeViewport.setVolumes) {
+              // 设置分割volume
+              volumeViewport.setVolumes([
+                { volumeId: originalVolumeId },
+                { volumeId: volumeId, blendMode: 1 } // 使用数字值代替枚举，1表示MAXIMUM_INTENSITY
+              ]);
+              volumeViewport.render();
+              console.log('[AIAssistant] 分割表示渲染完成');
+            } else {
+              console.error('[AIAssistant] 视口不支持setVolumes方法');
             }
+          } catch (error) {
+            console.error('[AIAssistant] 添加分割表示失败:', error);
+          }
 
         } catch (error) {
           console.error('[AIAssistant] 创建3D视口失败:', error);
         }
       });
     }
-  }, [renderingReady, processedVolumeId]);
+  }, [renderingReady, processedVolumeId, originalVolumeId]);
 
   // 处理影像
   const processImage = async () => {
@@ -647,6 +677,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         console.error('[AIAssistant] 无法加载关联影像');
         setIsProcessingImage(false);
         return false;
+      }
+
+      // 存储原始volume的volumeId
+      if (volume.volumeId) {
+        setOriginalVolumeId(volume.volumeId);
+        console.log('[AIAssistant] 存储原始volumeId:', volume.volumeId);
       }
 
       // 2. 确定模态 (这里简化处理，实际应该从DICOM元数据中获取)
