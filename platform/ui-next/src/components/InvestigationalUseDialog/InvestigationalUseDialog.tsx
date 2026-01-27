@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 export enum showDialogOption {
   NeverShowDialog = 'never',
-  AlwaysShowDialog = 'always',
+  AlwaysShowDialog = 'never',
   ShowOnceAndConfigure = 'configure',
 }
 
