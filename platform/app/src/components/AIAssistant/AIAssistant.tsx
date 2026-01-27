@@ -592,24 +592,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
           // 获取视口
           const viewport = renderingEngine.getViewport(viewportId);
 
-          // 1. 先添加原始volume并渲染
-          console.log('[AIAssistant] 添加原始volume到视口...');
-          const originalVolume = cache.getVolume(originalVolumeId);
-          if (originalVolume) {
-            // 使用类型断言确保TypeScript知道这是VolumeViewport
-            const volumeViewport = viewport as any;
-            if (volumeViewport.setVolumes) {
-              volumeViewport.setVolumes([{ volumeId: originalVolumeId }]);
-              volumeViewport.render();
-              console.log('[AIAssistant] 原始volume渲染完成');
-            } else {
-              console.error('[AIAssistant] 视口不支持setVolumes方法');
-            }
-          } else {
-            console.error('[AIAssistant] 无法获取原始volume');
-          }
-
-          // 2. 再添加分割表示
           console.log('[AIAssistant] 添加分割表示到视口...');
 
           // 获取分割数据
@@ -645,7 +627,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
             if (volumeViewport.setVolumes) {
               // 设置分割volume
               volumeViewport.setVolumes([
-                { volumeId: originalVolumeId },
                 { volumeId: volumeId, blendMode: 1 } // 使用数字值代替枚举，1表示MAXIMUM_INTENSITY
               ]);
               volumeViewport.render();
