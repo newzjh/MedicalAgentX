@@ -306,26 +306,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     }
   };
 
-  // 阈值切割
-  const applyThresholding = async (volume: any, modality: string) => {
+ // 阈值切割
+  const createSegmentation = async (volume: any) => {
     if (!volume) return null;
 
     try {
-      // 根据模态设置阈值
-      let lowerThreshold, upperThreshold;
-      if (modality === 'CT') {
-        lowerThreshold = 0;
-        upperThreshold = 200;
-      } else if (modality === 'MR') {
-        lowerThreshold = 200;
-        upperThreshold = 600;
-      } else {
-        // 默认阈值
-        lowerThreshold = 0;
-        upperThreshold = 255;
-      }
 
-      console.log('[AIAssistant] 应用阈值切割 - 模态:', modality, '阈值范围:', [lowerThreshold, upperThreshold]);
+
 
       // 获取volume的imageIds
       const imageIds = volume.imageIds || [];
@@ -374,6 +361,34 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       cstSegmentation.addSegmentations([segmentationPublicInput]);
       console.log('[AIAssistant] 分割添加成功');
 
+      return segmentationId;
+    }
+    catch (error) {
+      console.error('[AIAssistant] 创建分割失败:', error);
+      return null;
+    }
+  };
+
+  // 阈值切割
+  const applyThresholding = async (volume: any, segmentationId, modality: string) => {
+    if (!volume) return null;
+
+    try {
+      // 根据模态设置阈值
+      let lowerThreshold, upperThreshold;
+      if (modality === 'CT') {
+        lowerThreshold = 0;
+        upperThreshold = 200;
+      } else if (modality === 'MR') {
+        lowerThreshold = 200;
+        upperThreshold = 600;
+      } else {
+        // 默认阈值
+        lowerThreshold = 0;
+        upperThreshold = 255;
+      }
+
+      console.log('[AIAssistant] 应用阈值切割 - 模态:', modality, '阈值范围:', [lowerThreshold, upperThreshold]);
 
       // 获取分割数据
       const segmentation = cstSegmentation.state.getSegmentation(segmentationId);
@@ -669,16 +684,20 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       // 2. 确定模态 (这里简化处理，实际应该从DICOM元数据中获取)
       const modality = session.associatedImage.includes('CT') ? 'CT' : 'MR';
 
+      const segmentationId = await createSegmentation(volume);
+
+
+
       // 3. 应用阈值切割
-      const segmentationId = await applyThresholding(volume, modality);
-      if (!segmentationId) {
+      const segmentationId2 = await applyThresholding(volume, segmentationId, modality);
+      if (!segmentationId2) {
         console.error('[AIAssistant] 阈值切割失败');
         setIsProcessingImage(false);
         return false;
       }
 
       // 4. 应用数学形态学操作
-      const processedSegmentationId = applyMorphologicalOperations(segmentationId);
+      const processedSegmentationId = applyMorphologicalOperations(segmentationId2);
       if (!processedSegmentationId) {
         console.error('[AIAssistant] 数学形态学操作失败');
         setIsProcessingImage(false);
@@ -686,7 +705,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       }
 
       // 5. 设置体渲染
-      const renderingSuccess = await setupVolumeRendering(processedSegmentationId);
+      const renderingSuccess = await setupVolumeRendering(segmentationId);
 
       setIsProcessingImage(false);
       return renderingSuccess;
