@@ -234,9 +234,34 @@ function WorkList({
     document.cookie = `${name}=${value}; ${expires}; path=/`;
   };
 
-  // Load sessions from cookie on component mount
+  // LocalStorage utility functions
+  const getLocalStorage = (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (error) {
+      console.error('Error getting from localStorage:', error);
+      return null;
+    }
+  };
+
+  const setLocalStorage = (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('Error setting to localStorage:', error);
+    }
+  };
+
+  // Load sessions from storage (cookie or localStorage) on component mount
   useEffect(() => {
-    const savedSessions = getCookie('chatSessions');
+    // First try to get from cookie
+    let savedSessions = getCookie('chatSessions');
+
+    // If not found in cookie, try localStorage
+    if (!savedSessions) {
+      savedSessions = getLocalStorage('chatSessions');
+    }
+
     if (savedSessions) {
       try {
         const parsedSessions = JSON.parse(savedSessions);
@@ -281,10 +306,30 @@ function WorkList({
 
 
 
-  // Save sessions to cookie when sessions change
+  // Save sessions to storage (cookie or localStorage) when sessions change
   useEffect(() => {
     if (sessions.length > 0) {
-      setCookie('chatSessions', JSON.stringify(sessions));
+      const sessionsJson = JSON.stringify(sessions);
+      const sessionsLength = sessionsJson.length;
+
+      // Cookie size limit is approximately 4KB (4096 bytes)
+      const COOKIE_LIMIT = 4000; // Using 4000 to be safe
+
+      if (sessionsLength <= COOKIE_LIMIT) {
+        // Use cookie for small data
+        setCookie('chatSessions', sessionsJson);
+        // Clear from localStorage if it exists
+        try {
+          localStorage.removeItem('chatSessions');
+        } catch (error) {
+          // Ignore error
+        }
+      } else {
+        // Use localStorage for large data
+        setLocalStorage('chatSessions', sessionsJson);
+        // Clear from cookie if it exists
+        document.cookie = 'chatSessions=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      }
     }
   }, [sessions]);
 

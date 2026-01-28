@@ -302,9 +302,12 @@ ${conversationText}
 
     // Get AI response or simulate doctor response
     let responseText = '';
+
     if (session.type === 'ai') {
       responseText = await callDoubaoAPI(inputText.trim());
-    } else {
+    }
+    else
+    {
       // Simulate doctor response
       await new Promise(resolve => setTimeout(resolve, 1500));
       responseText = `这是${session.doctorName}医生的回复：${inputText.trim()}`;
