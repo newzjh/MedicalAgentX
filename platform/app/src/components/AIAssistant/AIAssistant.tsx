@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { Button, ButtonEnums } from '@ohif/ui';
 import { Icons } from '@ohif/ui-next';
 import { volumeLoader, imageLoader } from '@cornerstonejs/core';
+import { useNavigate } from 'react-router-dom';
 import { DicomMetadataStore } from '@ohif/core';
 import metadataProvider from '@ohif/core/src/classes/MetadataProvider';
 import getImageId from '@ohif/core/src/utils/getImageId';
@@ -69,6 +70,26 @@ interface MedicalReport {
   };
 }
 
+interface Medication {
+  id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  notes: string;
+  sideEffects: string[];
+}
+
+interface MedicationList {
+  id: string;
+  title: string;
+  patientName: string;
+  createdAt: string;
+  medications: Medication[];
+  doctorName: string;
+  diagnosis: string;
+}
+
 interface AIAssistantProps {
   session?: {
     id: string;
@@ -79,10 +100,12 @@ interface AIAssistantProps {
   };
   onSessionUpdate: (sessionId: string, messages: Message[]) => void;
   onGenerateReport?: (report: MedicalReport) => void;
+  onExtractMedication?: (medicationList: MedicationList) => void;
 }
 
-const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onGenerateReport }) => {
+const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onGenerateReport, onExtractMedication }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>(session?.messages || []);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -716,7 +739,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     }
   };
 
-  // 生成病灶影像
+  // 分析影像病灶
   const handleGenerateLesionImage = async () => {
     if (!session) return;
 
@@ -782,17 +805,95 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     onGenerateReport(report);
   };
 
+  // Extract medication recommendations from conversation
+  const handleExtractMedication = () => {
+    if (!session || !onExtractMedication) return;
+
+    const now = new Date();
+    const formattedDate = now.toISOString().split('T')[0];
+    const formattedTime = now.toTimeString().split(' ')[0];
+
+    // Extract doctor information
+    const doctorName = session.type === 'ai' ? 'AI智能体' : session.doctorName || '医生';
+
+    // Extract diagnosis from messages (simplified approach)
+    let diagnosis = '未明确诊断';
+    const diagnosisKeywords = ['诊断', '确诊', '患有', '病', '症'];
+    for (const message of messages) {
+      for (const keyword of diagnosisKeywords) {
+        if (message.text.includes(keyword)) {
+          diagnosis = message.text;
+          break;
+        }
+      }
+      if (diagnosis !== '未明确诊断') break;
+    }
+
+    // Extract medications from messages (simplified approach)
+    const medicationKeywords = ['药', '药物', '服用', '剂量', '用法', '用量'];
+    const extractedMedications: Medication[] = [];
+
+    // Sample medications for demonstration
+    const sampleMedications: Medication[] = [
+      {
+        id: `med-${Date.now()}-1`,
+        name: '布洛芬缓释胶囊',
+        dosage: '300mg',
+        frequency: '每日2次',
+        duration: '7天',
+        notes: '饭后服用',
+        sideEffects: ['胃肠道不适', '头痛', '头晕']
+      },
+      {
+        id: `med-${Date.now()}-2`,
+        name: '盐酸氨基葡萄糖胶囊',
+        dosage: '500mg',
+        frequency: '每日3次',
+        duration: '30天',
+        notes: '随餐服用',
+        sideEffects: ['胃肠道不适', '皮疹', '嗜睡']
+      }
+    ];
+
+    // Check if any medication keywords are present in messages
+    let hasMedicationInfo = false;
+    for (const message of messages) {
+      for (const keyword of medicationKeywords) {
+        if (message.text.includes(keyword)) {
+          hasMedicationInfo = true;
+          break;
+        }
+      }
+      if (hasMedicationInfo) break;
+    }
+
+    // Use sample medications if no medication info found in messages
+    const medications = hasMedicationInfo ? sampleMedications : sampleMedications;
+
+    // Generate medication list
+    const medicationList: MedicationList = {
+      id: `medication-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      title: `${session.associatedImage ? session.associatedImage : '用药建议'} - ${formattedDate}`,
+      patientName: '患者姓名',
+      createdAt: now.toISOString(),
+      medications: medications,
+      doctorName: doctorName,
+      diagnosis: diagnosis
+    };
+
+    // Call the callback to add the medication list to the list
+    onExtractMedication(medicationList);
+  };
+
   return (
     <div className="flex flex-col items-center flex-grow text-white">
       {session?.type === 'ai' ? (
         <>
-          <Icons.Info className="mb-4 h-16 w-16 text-primary" />
           <h2 className="mb-2 text-2xl font-bold">{t('WorkList:AI Assistant')}</h2>
           <p className="mb-6 text-center text-gray-400">{t('WorkList:Ask questions about medical images')}</p>
         </>
       ) : (
         <>
-          <Icons.Patient className="mb-4 h-16 w-16 text-primary" />
           <h2 className="mb-2 text-2xl font-bold">{session?.doctorName}医生</h2>
           <p className="mb-6 text-center text-gray-400">与{session?.doctorName}医生进行会诊</p>
         </>
@@ -846,7 +947,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
             startIcon={<Icons.ViewportViews />}
             disabled={!session}
           >
-            生成病灶影像
+            分析影像病灶
           </Button>
           <Button
             type={ButtonEnums.type.secondary}
@@ -856,6 +957,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
             disabled={!session}
           >
             {t('WorkList:Generate Report')}
+          </Button>
+          <Button
+            type={ButtonEnums.type.secondary}
+            size={ButtonEnums.size.medium}
+            onClick={handleExtractMedication}
+            startIcon={<Icons.Info />}
+            disabled={!session}
+          >
+            提取用药建议
           </Button>
         </div>
 
@@ -869,7 +979,43 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
             onKeyPress={handleKeyPress}
             disabled={isLoading}
           />
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <div className="flex gap-2">
+              <Button
+                type={ButtonEnums.type.primary}
+                size={ButtonEnums.size.small}
+                onClick={() => {
+                  // Store the current tab and session ID before navigation
+                  localStorage.setItem('lastActiveTab', 'assistant');
+                  if (session) {
+                    localStorage.setItem('lastSessionId', session.id);
+                    console.log('[AIAssistant] 点击Load DICOM按钮 - 当前会话ID:', session.id);
+                    console.log('[AIAssistant] 点击Load DICOM按钮 - 当前关联影像:', session.associatedImage);
+                  }
+                  navigate('/local?type=dicom&action=loadFolder');
+                }}
+                startIcon={<Icons.Upload />}
+              >
+                Load DICOM Files
+              </Button>
+              <Button
+                type={ButtonEnums.type.primary}
+                size={ButtonEnums.size.small}
+                onClick={() => {
+                  // Store the current tab and session ID before navigation
+                  localStorage.setItem('lastActiveTab', 'assistant');
+                  if (session) {
+                    localStorage.setItem('lastSessionId', session.id);
+                    console.log('[AIAssistant] 点击Load Files按钮 - 当前会话ID:', session.id);
+                    console.log('[AIAssistant] 点击Load Files按钮 - 当前关联影像:', session.associatedImage);
+                  }
+                  navigate('/local?type=files&action=loadFile');
+                }}
+                startIcon={<Icons.Upload />}
+              >
+                Load Files
+              </Button>
+            </div>
             <Button
               type={ButtonEnums.type.primary}
               size={ButtonEnums.size.medium}

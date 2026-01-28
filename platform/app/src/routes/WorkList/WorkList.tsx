@@ -51,6 +51,7 @@ import AIAssistant from '../../components/AIAssistant/AIAssistant';
 import WorkflowHistory from '../../components/WorkflowHistory/WorkflowHistory';
 import DoctorList from '../../components/DoctorList/DoctorList';
 import ReportDialog from '../../components/ReportDialog/ReportDialog';
+import MedicationDialog from '../../components/MedicationDialog/MedicationDialog';
 
 interface Session {
   id: string;
@@ -260,68 +261,7 @@ function WorkList({
     }
   }, []);
 
-  // Load mock medication lists on component mount
-  useEffect(() => {
-    const mockMedicationLists: MedicationList[] = [
-      {
-        id: '1',
-        title: '高血压用药建议',
-        patientName: '张三',
-        createdAt: '2024-01-20 14:30',
-        doctorName: '李医生',
-        diagnosis: '原发性高血压',
-        medications: [
-          {
-            id: 'm1',
-            name: '硝苯地平缓释片',
-            dosage: '20mg',
-            frequency: '每日1次',
-            duration: '30天',
-            notes: '饭后服用',
-            sideEffects: ['头痛', '面部潮红', '下肢水肿']
-          },
-          {
-            id: 'm2',
-            name: '缬沙坦胶囊',
-            dosage: '80mg',
-            frequency: '每日1次',
-            duration: '30天',
-            notes: '早餐前服用',
-            sideEffects: ['头晕', '恶心', '皮疹']
-          }
-        ]
-      },
-      {
-        id: '2',
-        title: '糖尿病用药建议',
-        patientName: '李四',
-        createdAt: '2024-01-19 10:15',
-        doctorName: '王医生',
-        diagnosis: '2型糖尿病',
-        medications: [
-          {
-            id: 'm3',
-            name: '二甲双胍片',
-            dosage: '500mg',
-            frequency: '每日3次',
-            duration: '30天',
-            notes: '餐时服用',
-            sideEffects: ['胃肠道不适', '腹泻', '乳酸酸中毒']
-          },
-          {
-            id: 'm4',
-            name: '格列美脲片',
-            dosage: '2mg',
-            frequency: '每日1次',
-            duration: '30天',
-            notes: '早餐前30分钟服用',
-            sideEffects: ['低血糖', '体重增加', '皮肤过敏']
-          }
-        ]
-      }
-    ];
-    setMedicationLists(mockMedicationLists);
-  }, []);
+
 
   // Save sessions to cookie when sessions change
   useEffect(() => {
@@ -1218,43 +1158,6 @@ function WorkList({
 
               {/* AI Assistant Tab */}
               <TabsContent value="assistant" className="flex grow flex-col p-4">
-                {/* Load DICOM Files Button */}
-                <div className="flex justify-center gap-2 p-4">
-                  <Button
-                    type={ButtonEnums.type.primary}
-                    size={ButtonEnums.size.small}
-                    onClick={() => {
-                      // Store the current tab and session ID before navigation
-                      localStorage.setItem('lastActiveTab', activeTab);
-                      if (currentSession) {
-                        localStorage.setItem('lastSessionId', currentSession.id);
-                        console.log('[WorkList] 点击Load DICOM按钮 - 当前会话ID:', currentSession.id);
-                        console.log('[WorkList] 点击Load DICOM按钮 - 当前关联影像:', currentSession.associatedImage);
-                      }
-                      navigate('/local?type=dicom&action=loadFolder');
-                    }}
-                    startIcon={<Icons.Upload />}
-                  >
-                    Load DICOM Files
-                  </Button>
-                  <Button
-                    type={ButtonEnums.type.primary}
-                    size={ButtonEnums.size.small}
-                    onClick={() => {
-                      // Store the current tab and session ID before navigation
-                      localStorage.setItem('lastActiveTab', activeTab);
-                      if (currentSession) {
-                        localStorage.setItem('lastSessionId', currentSession.id);
-                        console.log('[WorkList] 点击Load Files按钮 - 当前会话ID:', currentSession.id);
-                        console.log('[WorkList] 点击Load Files按钮 - 当前关联影像:', currentSession.associatedImage);
-                      }
-                      navigate('/local?type=files&action=loadFile');
-                    }}
-                    startIcon={<Icons.Upload />}
-                  >
-                    Load Files
-                  </Button>
-                </div>
                 <AIAssistant
                   session={currentSession || undefined}
                   onSessionUpdate={handleSessionUpdate}
@@ -1264,6 +1167,13 @@ function WorkList({
                     setActiveTab('reports');
                     setSelectedReport(report);
                     setShowReportDialog(true);
+                  }}
+                  onExtractMedication={(medicationList) => {
+                    setMedicationLists(prevLists => [...prevLists, medicationList]);
+                    // Auto switch to medication tab and open the generated medication list dialog
+                    setActiveTab('medication');
+                    setSelectedMedicationList(medicationList);
+                    setShowMedicationDialog(true);
                   }}
                 />
               </TabsContent>
@@ -1356,69 +1266,11 @@ function WorkList({
       />
 
       {/* Medication Details Dialog */}
-      <Dialog
+      <MedicationDialog
         open={showMedicationDialog}
         onOpenChange={handleCloseMedicationDialog}
-        className="max-w-4xl"
-      >
-        <DialogContent className="max-h-[80vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold">药单详情</h2>
-            <Button
-              variant="default"
-              size="small"
-              onClick={handleCloseMedicationDialog}
-            >
-              关闭
-            </Button>
-          </div>
-          {selectedMedicationList && (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <h3 className="text-lg font-semibold">{selectedMedicationList.title}</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p><strong>患者姓名:</strong> {selectedMedicationList.patientName}</p>
-                    <p><strong>医生姓名:</strong> {selectedMedicationList.doctorName}</p>
-                    <p><strong>诊断:</strong> {selectedMedicationList.diagnosis}</p>
-                  </div>
-                  <div>
-                    <p><strong>创建时间:</strong> {selectedMedicationList.createdAt}</p>
-                    <p><strong>药物数量:</strong> {selectedMedicationList.medications.length} 种</p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-3">药物详情</h3>
-                <div className="space-y-4">
-                  {selectedMedicationList.medications.map(medication => (
-                    <div key={medication.id} className="p-3 border rounded-lg">
-                      <h4 className="font-semibold text-base">{medication.name}</h4>
-                      <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                        <div>
-                          <p><strong>剂量:</strong> {medication.dosage}</p>
-                          <p><strong>频率:</strong> {medication.frequency}</p>
-                          <p><strong>疗程:</strong> {medication.duration}</p>
-                          <p><strong>备注:</strong> {medication.notes}</p>
-                        </div>
-                        <div>
-                          <p><strong>副作用:</strong></p>
-                          <ul className="list-disc pl-4">
-                            {medication.sideEffects.map((effect, index) => (
-                              <li key={index}>{effect}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+        selectedMedicationList={selectedMedicationList}
+      />
     </div>
   );
 }
