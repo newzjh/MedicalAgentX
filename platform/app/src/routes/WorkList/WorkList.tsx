@@ -274,34 +274,64 @@ function WorkList({
   const handleDoctorSelect = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
 
-    // Check if a session already exists for this doctor
-    let doctorSession = sessions.find((s: Session) => s.type === 'doctor' && s.doctorId === doctor.id);
+    // Check if selecting AI agent
+    if (doctor.id === 'ai') {
+      // Handle AI agent selection
+      let aiSession = sessions.find((s: Session) => s.type === 'ai');
 
-    if (!doctorSession) {
-      // Create new session for this doctor
-      doctorSession = {
-        id: `doctor-${doctor.id}`,
-        type: 'doctor',
-        doctorId: doctor.id,
-        doctorName: doctor.name,
-        messages: [],
-        associatedImage: associatedImage,
-      };
-      setSessions([...sessions, doctorSession]);
-    } else {
-      // Update associated image if it's not set
-      if (!doctorSession.associatedImage && associatedImage) {
-        doctorSession = {
-          ...doctorSession,
+      if (!aiSession) {
+        // Create new AI session
+        aiSession = {
+          id: 'ai-default',
+          type: 'ai',
+          messages: [],
           associatedImage: associatedImage,
         };
-        setSessions(sessions.map(s => s.id === doctorSession!.id ? doctorSession! : s));
+        setSessions([...sessions, aiSession]);
+      } else {
+        // Update associated image if it's not set
+        if (!aiSession.associatedImage && associatedImage) {
+          aiSession = {
+            ...aiSession,
+            associatedImage: associatedImage,
+          };
+          setSessions(sessions.map(s => s.id === aiSession!.id ? aiSession! : s));
+        }
       }
-    }
 
-    // Switch to AI Assistant tab and set current session
-    setCurrentSession(doctorSession);
-    setActiveTab('assistant');
+      // Switch to AI Assistant tab and set current session
+      setCurrentSession(aiSession);
+      setActiveTab('assistant');
+    } else {
+      // Handle regular doctor selection
+      let doctorSession = sessions.find((s: Session) => s.type === 'doctor' && s.doctorId === doctor.id);
+
+      if (!doctorSession) {
+        // Create new session for this doctor
+        doctorSession = {
+          id: `doctor-${doctor.id}`,
+          type: 'doctor',
+          doctorId: doctor.id,
+          doctorName: doctor.name,
+          messages: [],
+          associatedImage: associatedImage,
+        };
+        setSessions([...sessions, doctorSession]);
+      } else {
+        // Update associated image if it's not set
+        if (!doctorSession.associatedImage && associatedImage) {
+          doctorSession = {
+            ...doctorSession,
+            associatedImage: associatedImage,
+          };
+          setSessions(sessions.map(s => s.id === doctorSession!.id ? doctorSession! : s));
+        }
+      }
+
+      // Switch to AI Assistant tab and set current session
+      setCurrentSession(doctorSession);
+      setActiveTab('assistant');
+    }
   };
 
   // Handle session message update

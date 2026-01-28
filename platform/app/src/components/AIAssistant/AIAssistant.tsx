@@ -153,7 +153,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   // Format current timestamp
   const formatTimestamp = () => {
     const now = new Date();
-    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return now.toDateString()+now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
   // Call Doubao API
@@ -161,19 +161,49 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     try {
       setIsLoading(true);
 
-      // TODO: Replace with actual Doubao API call
-      // For now, we'll simulate a response
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const apiKey = '7682bda6-1e7b-4096-b672-42a3b5453d17';
+      const apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
 
-      const response = {
-        answer: `This is a simulated response to your question: "${question}". In a real implementation, this would be replaced with an actual response from the Doubao API.`
-      };
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'doubao-seed-1-8-251228', // 豆包模型名称
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a medical AI assistant. Please answer medical questions accurately and professionally.'
+            },
+            {
+              role: 'user',
+              content: question
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000
+        })
+      });
 
-      return response.answer;
-    } catch (error) {
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[AIAssistant] 调用豆包API成功 - 响应数据:', data);
+      const answer = data.choices[0].message.content;
+
+      return answer;
+    }
+    catch (error)
+    {
       console.error('Error calling Doubao API:', error);
       return t('AIAssistant:Error getting response from AI assistant');
-    } finally {
+    }
+     finally
+     {
       setIsLoading(false);
     }
   };
@@ -188,11 +218,6 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       isUser: true,
       timestamp: formatTimestamp()
     };
-
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    onSessionUpdate(session.id, updatedMessages);
-    setInputText('');
 
     // Get AI response or simulate doctor response
     let responseText = '';
@@ -211,9 +236,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       timestamp: formatTimestamp()
     };
 
-    const finalMessages = [...updatedMessages, responseMessage];
+    // Add both user message and response to messages array
+    const finalMessages = [...messages, userMessage, responseMessage];
     setMessages(finalMessages);
+    // Update session only once with both messages
     onSessionUpdate(session.id, finalMessages);
+    setInputText('');
   };
 
   // Handle input key press (send on Enter, shift+Enter for new line)
@@ -222,6 +250,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  // Clear chat messages
+  const handleClearChat = () => {
+    if (!session) return;
+
+    const emptyMessages: Message[] = [];
+    setMessages(emptyMessages);
+    onSessionUpdate(session.id, emptyMessages);
   };
 
   // 从studyInstanceUID获取imageIds
@@ -940,6 +977,15 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
         {/* Generate buttons */}
         <div className="flex justify-center gap-2 mb-2">
+          <Button
+            type={ButtonEnums.type.secondary}
+            size={ButtonEnums.size.medium}
+            onClick={handleClearChat}
+            startIcon={<Icons.Trash />}
+            disabled={!session || messages.length === 0}
+          >
+            清理对话
+          </Button>
           <Button
             type={ButtonEnums.type.secondary}
             size={ButtonEnums.size.medium}
