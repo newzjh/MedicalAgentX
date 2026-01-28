@@ -80,6 +80,7 @@ interface Medication {
   sideEffects: string[];
   basicInfo?: string;
   basicFunction?: string;
+  equation?: string;
 }
 
 interface MedicationList {
@@ -230,17 +231,18 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         `${msg.isUser ? '用户' : '助手'}: ${msg.text}`
       ).join('\n');
 
-      const prompt = `请分析医疗对话，找出其中涉及的所有药物，并以JSON格式返回每种药物的详细信息。JSON应包含以下字段：
+      const prompt = `请分析医疗对话，找出其中涉及的最多16个药物，并以JSON格式返回每种药物的详细信息。JSON应包含以下字段：
 
 1. id: 唯一标识符
 2. name: 药物名称
-3. dosage: 用法用量
-4. frequency: 用药频率
-5. duration: 用药疗程
-6. notes: 用药注意事项
+3. dosage: 常规用法用量
+4. frequency: 常规用药频率
+5. duration: 常规疗程
+6. notes: 常规用药注意事项
 7. sideEffects: 副作用数组
-8. basicInfo: 药物基本信息
-9. basicFunction: 药物基本作用
+8. basicInfo: 药物靶点信息
+9. basicFunction: 药物作用原理
+10.equation: 药物的化学表达式
 
 请严格以JSON格式返回结果，不要包含任何其他文本
 下面是对话内容：
@@ -268,7 +270,7 @@ ${conversationText}
             }
           ],
           temperature: 0.7,
-          max_tokens: 2000
+          max_tokens: 5000
         })
       });
 
@@ -284,18 +286,7 @@ ${conversationText}
       try {
         console.log('[AIAssistant] CallDoubaoForMedicans - 原始API响应:', answer);
 
-        // 清理可能的JSON格式问题
-        let cleanedAnswer = answer;
-
-        // 移除JSON前后的非JSON内容
-        const jsonStart = cleanedAnswer.indexOf('[');
-        const jsonEnd = cleanedAnswer.lastIndexOf(']') + 1;
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          cleanedAnswer = cleanedAnswer.substring(jsonStart, jsonEnd);
-          console.log('[AIAssistant] CallDoubaoForMedicans - 清理后的JSON:', cleanedAnswer);
-        }
-
-        const medications = JSON.parse(cleanedAnswer);
+        const medications = JSON.parse(answer);
         console.log('[AIAssistant] CallDoubaoForMedicans - 解析后的药物信息:', medications);
         return medications;
       }
