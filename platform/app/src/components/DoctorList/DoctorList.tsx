@@ -9,6 +9,7 @@ interface Doctor {
   hospital: string;
   department: string;
   description: string;
+  avatar: string;
 }
 
 interface DoctorListProps {
@@ -27,42 +28,48 @@ const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect, onTabChange }) 
       name: 'AI智能体',
       hospital: 'AI诊断中心',
       department: '人工智能',
-      description: '基于深度学习的医学影像诊断助手，能够快速分析多种影像数据，提供辅助诊断建议。'
+      description: '基于深度学习的医学影像诊断助手，能够快速分析多种影像数据，提供辅助诊断建议。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=AI%20medical%20assistant%20humanoid%20face%20blue%20digital&image_size=square'
     },
     {
       id: '1',
       name: '张医生',
       hospital: '北京协和医院',
       department: '放射科',
-      description: '从事放射诊断工作20年，擅长胸部、腹部疾病的影像诊断。'
+      description: '从事放射诊断工作20年，擅长胸部、腹部疾病的影像诊断。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=asian%20male%20doctor%20portrait%20white%20coat&image_size=square'
     },
     {
       id: '2',
       name: '李医生',
       hospital: '上海瑞金医院',
       department: '神经内科',
-      description: '专注于脑血管疾病的影像诊断和介入治疗，具有丰富的临床经验。'
+      description: '专注于脑血管疾病的影像诊断和介入治疗，具有丰富的临床经验。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=asian%20female%20doctor%20portrait%20white%20coat&image_size=square'
     },
     {
       id: '3',
       name: '王医生',
       hospital: '广州中山医院',
       department: '骨科',
-      description: '擅长骨关节疾病的影像诊断，尤其是MRI诊断方面有深入研究。'
+      description: '擅长骨关节疾病的影像诊断，尤其是MRI诊断方面有深入研究。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=asian%20male%20doctor%20portrait%20professional&image_size=square'
     },
     {
       id: '4',
       name: '赵医生',
       hospital: '成都华西医院',
       department: '心血管内科',
-      description: '从事心血管影像诊断工作15年，擅长冠心病、心肌病的影像评估。'
+      description: '从事心血管影像诊断工作15年，擅长冠心病、心肌病的影像评估。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=asian%20female%20doctor%20portrait%20professional&image_size=square'
     },
     {
       id: '5',
       name: '刘医生',
       hospital: '武汉同济医院',
       department: '肿瘤科',
-      description: '专注于肿瘤的影像诊断和疗效评估，尤其是PET-CT诊断方面有丰富经验。'
+      description: '专注于肿瘤的影像诊断和疗效评估，尤其是PET-CT诊断方面有丰富经验。',
+      avatar: 'https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=asian%20male%20doctor%20professional%20portrait&image_size=square'
     }
   ];
 
@@ -107,16 +114,29 @@ const DoctorList: React.FC<DoctorListProps> = ({ onDoctorSelect, onTabChange }) 
               className={`rounded-lg p-4 transition-all duration-200 cursor-pointer ${selectedDoctor?.id === doctor.id ? 'bg-blue-900 border-2 border-blue-500' : 'bg-gray-800 hover:bg-gray-700'}`}
               onClick={() => handleDoctorSelect(doctor)}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="text-lg font-semibold">{doctor.name}</h3>
-                  <p className="text-sm text-gray-400">{doctor.hospital} - {doctor.department}</p>
+              <div className="flex items-start gap-4 mb-2">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-600">
+                    <img 
+                      src={doctor.avatar} 
+                      alt={doctor.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
                 </div>
-                {selectedDoctor?.id === doctor.id && (
-                  <Icons.Checked className="h-5 w-5 text-blue-500" />
-                )}
+                <div className="flex-grow">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <h3 className="text-lg font-semibold">{doctor.name}</h3>
+                      <p className="text-sm text-gray-400">{doctor.hospital} - {doctor.department}</p>
+                    </div>
+                    {selectedDoctor?.id === doctor.id && (
+                      <Icons.Checked className="h-5 w-5 text-blue-500" />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-300">{doctor.description}</p>
+                </div>
               </div>
-              <p className="text-sm text-gray-300">{doctor.description}</p>
             </div>
           ))}
         </div>

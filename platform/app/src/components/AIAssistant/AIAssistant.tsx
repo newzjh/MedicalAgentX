@@ -425,7 +425,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         ],
         { overwrite: true, segmentIndex: 1, segmentationId }
       );
-*/
+    */
 
       console.log('[AIAssistant] 阈值切割完成 - labelmapVolume:', labelmapVolume);
       return segmentationId;
