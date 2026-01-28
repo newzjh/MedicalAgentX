@@ -221,6 +221,39 @@ function WorkList({
   const [selectedMedicationList, setSelectedMedicationList] = useState<MedicationList | null>(null);
   const [showMedicationDialog, setShowMedicationDialog] = useState(false);
 
+  // Base64 utility functions
+  const isBase64 = (str: string): boolean => {
+    try {
+      // Check if the string is valid base64
+      return btoa(atob(str)) === str;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const base64Encode = (str: string): string => {
+    try {
+      return btoa(unescape(encodeURIComponent(str)));
+    } catch (error) {
+      console.error('Error encoding to base64:', error);
+      return str;
+    }
+  };
+
+  const base64Decode = (str: string): string => {
+    try {
+      // Only decode if it's valid base64
+      if (isBase64(str)) {
+        return decodeURIComponent(escape(atob(str)));
+      }
+      // Return original string if not base64
+      return str;
+    } catch (error) {
+      console.error('Error decoding from base64:', error);
+      return str;
+    }
+  };
+
   // Cookie utility functions
   const getCookie = (name: string): string | null => {
     const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
@@ -256,15 +289,20 @@ function WorkList({
   useEffect(() => {
     // First try to get from cookie
     let savedSessions = getCookie('chatSessions');
+    let isFromCookie = true;
 
     // If not found in cookie, try localStorage
     if (!savedSessions) {
       savedSessions = getLocalStorage('chatSessions');
+      isFromCookie = false;
     }
 
     if (savedSessions) {
       try {
-        const parsedSessions = JSON.parse(savedSessions);
+        // Decode from base64 if it's from cookie
+        const decodedSessions = isFromCookie ? base64Decode(savedSessions) : savedSessions;
+        const parsedSessions = JSON.parse(decodedSessions);
+
         // Check if AI session exists
         let aiSession = parsedSessions.find((s: Session) => s.type === 'ai');
 
@@ -313,11 +351,13 @@ function WorkList({
       const sessionsLength = sessionsJson.length;
 
       // Cookie size limit is approximately 4KB (4096 bytes)
-      const COOKIE_LIMIT = 4000; // Using 4000 to be safe
+      // Base64 encoding increases size by about 33%, so adjust limit accordingly
+      const COOKIE_LIMIT = 3000; // Using 3000 to account for base64 overhead
 
       if (sessionsLength <= COOKIE_LIMIT) {
-        // Use cookie for small data
-        setCookie('chatSessions', sessionsJson);
+        // Use cookie for small data - encode to base64
+        const encodedSessions = base64Encode(sessionsJson);
+        setCookie('chatSessions', encodedSessions);
         // Clear from localStorage if it exists
         try {
           localStorage.removeItem('chatSessions');
@@ -325,7 +365,7 @@ function WorkList({
           // Ignore error
         }
       } else {
-        // Use localStorage for large data
+        // Use localStorage for large data - no need for base64 encoding
         setLocalStorage('chatSessions', sessionsJson);
         // Clear from cookie if it exists
         document.cookie = 'chatSessions=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';

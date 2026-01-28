@@ -78,6 +78,8 @@ interface Medication {
   duration: string;
   notes: string;
   sideEffects: string[];
+  basicInfo?: string;
+  basicFunction?: string;
 }
 
 interface MedicationList {
@@ -213,6 +215,13 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     try {
       setIsLoading(true);
 
+
+      // Check if conversationHistory is empty
+      if (!conversationHistory || conversationHistory.length === 0) {
+        console.warn('[AIAssistant] CallDoubaoForMedicans - 会话历史为空');
+        return [];
+      }
+
       const apiKey = '7682bda6-1e7b-4096-b672-42a3b5453d17';
       const apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
 
@@ -221,7 +230,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         `${msg.isUser ? '用户' : '助手'}: ${msg.text}`
       ).join('\n');
 
-      const prompt = `请分析以下医疗对话，找出其中涉及的所有药物，并以JSON格式返回每种药物的详细信息。JSON应包含以下字段：
+      const prompt = `请分析医疗对话，找出其中涉及的所有药物，并以JSON格式返回每种药物的详细信息。JSON应包含以下字段：
 
 1. id: 唯一标识符
 2. name: 药物名称
@@ -233,10 +242,12 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 8. basicInfo: 药物基本信息
 9. basicFunction: 药物基本作用
 
-对话内容：
+请严格以JSON格式返回结果，不要包含任何其他文本
+下面是对话内容：
 ${conversationText}
+`;
 
-请严格以JSON格式返回结果，不要包含任何其他文本。`;
+      //console.log('[AIAssistant] CallDoubaoForMedicans - 格式化后的提示:', prompt);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -271,11 +282,38 @@ ${conversationText}
 
       // Parse JSON response
       try {
-        const medications = JSON.parse(answer);
+        console.log('[AIAssistant] CallDoubaoForMedicans - 原始API响应:', answer);
+
+        // 清理可能的JSON格式问题
+        let cleanedAnswer = answer;
+
+        // 移除JSON前后的非JSON内容
+        const jsonStart = cleanedAnswer.indexOf('[');
+        const jsonEnd = cleanedAnswer.lastIndexOf(']') + 1;
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          cleanedAnswer = cleanedAnswer.substring(jsonStart, jsonEnd);
+          console.log('[AIAssistant] CallDoubaoForMedicans - 清理后的JSON:', cleanedAnswer);
+        }
+
+        const medications = JSON.parse(cleanedAnswer);
+        console.log('[AIAssistant] CallDoubaoForMedicans - 解析后的药物信息:', medications);
         return medications;
-      } catch (parseError) {
+      }
+      catch (parseError) {
         console.error('Error parsing medication JSON:', parseError);
-        return [];
+        console.error('原始响应内容:', answer);
+
+        // 尝试使用更宽松的解析方法
+        try {
+          // 使用eval作为最后的尝试（注意：仅在受控环境中使用）
+          console.log('[AIAssistant] CallDoubaoForMedicans - 尝试使用eval解析');
+          const medications = eval(`(${answer})`);
+          console.log('[AIAssistant] CallDoubaoForMedicans - eval解析后的药物信息:', medications);
+          return medications;
+        } catch (evalError) {
+          console.error('Error parsing medication with eval:', evalError);
+          return [];
+        }
       }
     }
     catch (error)
@@ -930,6 +968,10 @@ ${conversationText}
   const handleExtractMedication = async () => {
     if (!session || !onExtractMedication) return;
 
+    console.log('[AIAssistant] handleExtractMedication - 开始提取用药建议');
+    console.log('[AIAssistant] handleExtractMedication - 当前messages状态长度:', messages.length);
+    console.log('[AIAssistant] handleExtractMedication - 当前messages状态内容:', messages);
+
     const now = new Date();
     const formattedDate = now.toISOString().split('T')[0];
     const formattedTime = now.toTimeString().split(' ')[0];
@@ -939,6 +981,7 @@ ${conversationText}
 
     // Extract diagnosis from messages (simplified approach)
     let diagnosis = '未明确诊断';
+    /*
     const diagnosisKeywords = ['诊断', '确诊', '患有', '病', '症'];
     for (const message of messages) {
       for (const keyword of diagnosisKeywords) {
@@ -949,9 +992,13 @@ ${conversationText}
       }
       if (diagnosis !== '未明确诊断') break;
     }
+      */
 
     // Call Doubao API to extract medication information
+    console.log('[AIAssistant] handleExtractMedication - 调用CallDoubaoForMedicans前的messages长度:', messages.length);
     const extractedMedications = await CallDoubaoForMedicans(messages);
+    console.log('[AIAssistant] handleExtractMedication - 从CallDoubaoForMedicans返回的药物信息:', extractedMedications);
+    console.assert(extractedMedications, 'Failed to extract medications from Doubao API');
 
     // Use sample medications if no medication info found from API
     let medications: Medication[];
@@ -964,8 +1011,11 @@ ${conversationText}
         frequency: med.frequency,
         duration: med.duration,
         notes: med.notes,
-        sideEffects: med.sideEffects || []
+        sideEffects: med.sideEffects || [],
+        basicInfo: med.basicInfo,
+        basicFunction: med.basicFunction
       }));
+      console.log('[AIAssistant] handleExtractMedication - 使用从API获取的药物信息:', medications);
     } else {
       // Sample medications for demonstration
       medications = [
