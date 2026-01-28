@@ -159,8 +159,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     return now.toDateString()+now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Call Doubao API
-  const callDoubaoAPI = async (question: string) => {
+  // Call Doubao API with streaming response
+  const callDoubaoAPI = async (question: string, responseMessageId: string, initialMessages: Message[]) => {
     try {
       setIsLoading(true);
 
@@ -175,6 +175,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         },
         body: JSON.stringify({
           model: 'doubao-seed-1-8-251228', // 豆包模型名称
+          session_id: session?.id || generateId(),
           messages: [
             {
               role: 'system',
@@ -186,7 +187,8 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
             }
           ],
           temperature: 0.7,
-          max_tokens: 1000
+          max_tokens: 1000,
+          stream: true
         })
       });
 
@@ -194,11 +196,86 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         throw new Error(`API request failed with status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('[AIAssistant] 调用豆包API成功 - 响应数据:', data);
-      const answer = data.choices[0].message.content;
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Failed to get response reader');
+      }
 
-      return answer;
+      let fullContent = '';
+      let done = false;
+      let lastUpdateTime = 0;
+      const UPDATE_INTERVAL = 1000; // 1秒更新间隔
+      let currentMessages = initialMessages;
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) {
+          const chunk = new TextDecoder().decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataPart = line.substring(6);
+              if (dataPart === '[DONE]') {
+                // 完成时最后一次更新，确保内容完整
+                if (session) {
+                  const updatedMessages = currentMessages.map(msg =>
+                    msg.id === responseMessageId
+                      ? { ...msg, text: fullContent }
+                      : msg
+                  );
+                  setMessages(updatedMessages);
+                  currentMessages = updatedMessages;
+                }
+                break;
+              } else {
+                try {
+                  const eventData = JSON.parse(dataPart);
+                  if (eventData.choices && eventData.choices.length > 0) {
+                    const delta = eventData.choices[0].delta;
+                    if (delta.content) {
+                      fullContent += delta.content;
+
+                      // 控制更新频率，每1秒更新一次
+                      const currentTime = Date.now();
+                      if (currentTime - lastUpdateTime >= UPDATE_INTERVAL) {
+                        // 只更新对话框中的消息，不调用onSessionUpdate
+                        if (session) {
+                          const updatedMessages = currentMessages.map(msg =>
+                            msg.id === responseMessageId
+                              ? { ...msg, text: fullContent }
+                              : msg
+                          );
+                          setMessages(updatedMessages);
+                          currentMessages = updatedMessages;
+                          lastUpdateTime = currentTime;
+                        }
+                      }
+                    }
+                  }
+                } catch (parseError) {
+                  // 静默处理解析错误，不输出日志
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 最终更新，确保内容完整
+      if (session) {
+        const updatedMessages = currentMessages.map(msg =>
+          msg.id === responseMessageId
+            ? { ...msg, text: fullContent }
+            : msg
+        );
+        setMessages(updatedMessages);
+        // 流式完成后调用一次onSessionUpdate，确保会话状态同步
+        onSessionUpdate(session.id, updatedMessages);
+      }
+
+      return fullContent;
     }
     catch (error)
     {
@@ -329,31 +406,43 @@ ${conversationText}
       timestamp: formatTimestamp()
     };
 
-    // Get AI response or simulate doctor response
-    let responseText = '';
-
-    if (session.type === 'ai') {
-      responseText = await callDoubaoAPI(inputText.trim());
-    }
-    else
-    {
-      // Simulate doctor response
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      responseText = `这是${session.doctorName}医生的回复：${inputText.trim()}`;
-    }
-
+    // Create response message with empty content initially
+    const responseMessageId = generateId();
     const responseMessage: Message = {
-      id: generateId(),
-      text: responseText,
+      id: responseMessageId,
+      text: '',
       isUser: false,
       timestamp: formatTimestamp()
     };
 
-    // Add both user message and response to messages array
-    const finalMessages = [...messages, userMessage, responseMessage];
-    setMessages(finalMessages);
-    // Update session only once with both messages
-    onSessionUpdate(session.id, finalMessages);
+    // Add user message and empty response message to messages array
+    const initialMessages = [...messages, userMessage, responseMessage];
+    setMessages(initialMessages);
+    onSessionUpdate(session.id, initialMessages);
+
+    // Get AI response or simulate doctor response
+    let responseText = '';
+
+    if (session.type === 'ai') {
+      // Call API with streaming and update message as response comes in
+      responseText = await callDoubaoAPI(inputText.trim(), responseMessageId, initialMessages);
+    }
+    else
+    {
+      // Simulate doctor response
+      responseText = `这是${session.doctorName}医生的回复：${inputText.trim()}`;
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // Update the response message with the simulated response
+      const updatedMessages = initialMessages.map(msg =>
+        msg.id === responseMessageId
+          ? { ...msg, text: responseText }
+          : msg
+      );
+      setMessages(updatedMessages);
+      onSessionUpdate(session.id, updatedMessages);
+    }
+
     setInputText('');
   };
 
