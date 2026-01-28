@@ -3,6 +3,24 @@ import * as TabsPrimitive from '@radix-ui/react-tabs';
 
 import { cn } from '../../lib/utils';
 
+// Add flowing animation styles
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes flowAnimation {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+  .animate-flow {
+    animation: flowAnimation 3s linear infinite;
+    background-size: 200% 200%;
+  }
+`;
+document.head.appendChild(style);
+
 const Tabs = TabsPrimitive.Root;
 
 const TabsList = React.forwardRef<
@@ -12,7 +30,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      'bg-blue-100 hover:bg-blue-200 text-gray-900 inline-flex h-7 items-center justify-center rounded-md py-1',
+      'bg-gradient-to-r from-blue-100 via-blue-200 to-blue-100 text-gray-900 inline-flex h-7 items-center justify-center rounded-md py-1',
+      'animate-flow',
       className
     )}
     {...props}

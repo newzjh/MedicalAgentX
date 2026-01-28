@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 //
 import filtersMeta from './filtersMeta.js';
 import { useAppConfig } from '@state';
-import useWorkflowHistoryStore from '@state/useWorkflowHistoryStore';
+
 import { useDebounce, useSearchParams, useOrientation } from '../../hooks';
 import { utils, Types as coreTypes } from '@ohif/core';
 
@@ -40,6 +40,8 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
+  Dialog,
+  DialogContent,
 } from '@ohif/ui-next';
 
 import { preserveQueryParameters, preserveQueryStrings } from '../../utils/preserveQueryParameters';
@@ -177,8 +179,7 @@ function WorkList({
     localStorage.setItem('lastActiveTab', activeTab);
   }, [activeTab]);
 
-  // Workflow history state from Zustand store
-  const { workflowHistory, addWorkflowItem, clearWorkflowHistory } = useWorkflowHistoryStore();
+
   // Drag state for tab navigation
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -193,6 +194,31 @@ function WorkList({
   const [reports, setReports] = useState<MedicalReport[]>([]);
   const [selectedReport, setSelectedReport] = useState<MedicalReport | null>(null);
   const [showReportDialog, setShowReportDialog] = useState(false);
+
+  // Medication management state
+  interface Medication {
+    id: string;
+    name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    notes: string;
+    sideEffects: string[];
+  }
+
+  interface MedicationList {
+    id: string;
+    title: string;
+    patientName: string;
+    createdAt: string;
+    medications: Medication[];
+    doctorName: string;
+    diagnosis: string;
+  }
+
+  const [medicationLists, setMedicationLists] = useState<MedicationList[]>([]);
+  const [selectedMedicationList, setSelectedMedicationList] = useState<MedicationList | null>(null);
+  const [showMedicationDialog, setShowMedicationDialog] = useState(false);
 
   // Cookie utility functions
   const getCookie = (name: string): string | null => {
@@ -232,6 +258,69 @@ function WorkList({
       setSessions([defaultAISession]);
       setCurrentSession(defaultAISession);
     }
+  }, []);
+
+  // Load mock medication lists on component mount
+  useEffect(() => {
+    const mockMedicationLists: MedicationList[] = [
+      {
+        id: '1',
+        title: '高血压用药建议',
+        patientName: '张三',
+        createdAt: '2024-01-20 14:30',
+        doctorName: '李医生',
+        diagnosis: '原发性高血压',
+        medications: [
+          {
+            id: 'm1',
+            name: '硝苯地平缓释片',
+            dosage: '20mg',
+            frequency: '每日1次',
+            duration: '30天',
+            notes: '饭后服用',
+            sideEffects: ['头痛', '面部潮红', '下肢水肿']
+          },
+          {
+            id: 'm2',
+            name: '缬沙坦胶囊',
+            dosage: '80mg',
+            frequency: '每日1次',
+            duration: '30天',
+            notes: '早餐前服用',
+            sideEffects: ['头晕', '恶心', '皮疹']
+          }
+        ]
+      },
+      {
+        id: '2',
+        title: '糖尿病用药建议',
+        patientName: '李四',
+        createdAt: '2024-01-19 10:15',
+        doctorName: '王医生',
+        diagnosis: '2型糖尿病',
+        medications: [
+          {
+            id: 'm3',
+            name: '二甲双胍片',
+            dosage: '500mg',
+            frequency: '每日3次',
+            duration: '30天',
+            notes: '餐时服用',
+            sideEffects: ['胃肠道不适', '腹泻', '乳酸酸中毒']
+          },
+          {
+            id: 'm4',
+            name: '格列美脲片',
+            dosage: '2mg',
+            frequency: '每日1次',
+            duration: '30天',
+            notes: '早餐前30分钟服用',
+            sideEffects: ['低血糖', '体重增加', '皮肤过敏']
+          }
+        ]
+      }
+    ];
+    setMedicationLists(mockMedicationLists);
   }, []);
 
   // Save sessions to cookie when sessions change
@@ -322,7 +411,7 @@ function WorkList({
   };
 
   // Tab order for navigation
-  const tabOrder = ['studies', 'assistant', 'workflow', 'consultation', 'reports'];
+  const tabOrder = ['studies', 'assistant', 'consultation', 'reports', 'medication'];
 
 
 
@@ -692,6 +781,18 @@ function WorkList({
     setSelectedReport(null);
   };
 
+  // Handle medication list click to open details dialog
+  const handleMedicationListClick = (medicationList: MedicationList) => {
+    setSelectedMedicationList(medicationList);
+    setShowMedicationDialog(true);
+  };
+
+  // Close medication details dialog
+  const handleCloseMedicationDialog = () => {
+    setShowMedicationDialog(false);
+    setSelectedMedicationList(null);
+  };
+
   const tableDataSource = sortedStudies.map((study, key) => {
     const rowKey = key + 1;
     const isExpanded = expandedRows.some(k => k === rowKey);
@@ -1019,10 +1120,6 @@ function WorkList({
                 <Icons.Info className="mr-1 h-3 w-3" />
                 {t('WorkList:AI Assistant')}
               </TabsTrigger>
-              <TabsTrigger value="workflow" className="text-xs px-2 py-0.5 text-gray-900">
-                <Icons.StatusTracking className="mr-1 h-3 w-3" />
-                {t('WorkList:Workflow')}
-              </TabsTrigger>
               <TabsTrigger value="consultation" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.MultiplePatients className="mr-1 h-3 w-3" />
                 {t('WorkList:Consultation')}
@@ -1030,6 +1127,10 @@ function WorkList({
               <TabsTrigger value="reports" className="text-xs px-2 py-0.5 text-gray-900">
                 <Icons.Download className="mr-1 h-3 w-3" />
                 {t('WorkList:Reports')}
+              </TabsTrigger>
+              <TabsTrigger value="medication" className="text-xs px-2 py-0.5 text-gray-900">
+                <Icons.Info className="mr-1 h-3 w-3" />
+                Medication
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -1167,14 +1268,6 @@ function WorkList({
                 />
               </TabsContent>
 
-              {/* Workflow Tab */}
-              <TabsContent value="workflow" className="flex grow flex-col p-4">
-                <WorkflowHistory
-                  workflowHistory={workflowHistory}
-                  onClearHistory={clearWorkflowHistory}
-                />
-              </TabsContent>
-
               {/* Consultation Tab */}
               <TabsContent value="consultation" className="flex grow flex-col p-4">
                 <DoctorList onDoctorSelect={handleDoctorSelect} onTabChange={setActiveTab} />
@@ -1213,6 +1306,43 @@ function WorkList({
                   </div>
                 )}
               </TabsContent>
+
+              {/* Medication Management Tab */}
+              <TabsContent value="medication" className="flex grow flex-col p-4">
+                <h2 className="mb-4 text-xl font-bold">用药管理</h2>
+                {medicationLists.length > 0 ? (
+                  <div className="space-y-4">
+                    {medicationLists.map(medicationList => (
+                      <div
+                        key={medicationList.id}
+                        className="p-4 border rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 transition-colors"
+                        onClick={() => handleMedicationListClick(medicationList)}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="text-lg font-semibold">{medicationList.title}</h3>
+                          <span className="text-sm text-gray-500">{medicationList.createdAt}</span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p><strong>患者姓名:</strong> {medicationList.patientName}</p>
+                          <p><strong>医生姓名:</strong> {medicationList.doctorName}</p>
+                          <p><strong>诊断:</strong> {medicationList.diagnosis}</p>
+                          <p><strong>药物数量:</strong> {medicationList.medications.length} 种</p>
+                        </div>
+                        <div className="mt-2 space-y-1 text-sm">
+                          <p className="font-semibold">药物列表:</p>
+                          {medicationList.medications.map(med => (
+                            <p key={med.id}>- {med.name} ({med.dosage}, {med.frequency})</p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-64 text-gray-500">
+                    暂无用药记录
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </div>
         </ScrollArea>
@@ -1224,6 +1354,71 @@ function WorkList({
         onOpenChange={handleCloseReportDialog}
         selectedReport={selectedReport}
       />
+
+      {/* Medication Details Dialog */}
+      <Dialog
+        open={showMedicationDialog}
+        onOpenChange={handleCloseMedicationDialog}
+        className="max-w-4xl"
+      >
+        <DialogContent className="max-h-[80vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">药单详情</h2>
+            <Button
+              variant="default"
+              size="small"
+              onClick={handleCloseMedicationDialog}
+            >
+              关闭
+            </Button>
+          </div>
+          {selectedMedicationList && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold">{selectedMedicationList.title}</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p><strong>患者姓名:</strong> {selectedMedicationList.patientName}</p>
+                    <p><strong>医生姓名:</strong> {selectedMedicationList.doctorName}</p>
+                    <p><strong>诊断:</strong> {selectedMedicationList.diagnosis}</p>
+                  </div>
+                  <div>
+                    <p><strong>创建时间:</strong> {selectedMedicationList.createdAt}</p>
+                    <p><strong>药物数量:</strong> {selectedMedicationList.medications.length} 种</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold mb-3">药物详情</h3>
+                <div className="space-y-4">
+                  {selectedMedicationList.medications.map(medication => (
+                    <div key={medication.id} className="p-3 border rounded-lg">
+                      <h4 className="font-semibold text-base">{medication.name}</h4>
+                      <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
+                        <div>
+                          <p><strong>剂量:</strong> {medication.dosage}</p>
+                          <p><strong>频率:</strong> {medication.frequency}</p>
+                          <p><strong>疗程:</strong> {medication.duration}</p>
+                          <p><strong>备注:</strong> {medication.notes}</p>
+                        </div>
+                        <div>
+                          <p><strong>副作用:</strong></p>
+                          <ul className="list-disc pl-4">
+                            {medication.sideEffects.map((effect, index) => (
+                              <li key={index}>{effect}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
