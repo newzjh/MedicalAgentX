@@ -15,6 +15,9 @@ import getImageId from '@ohif/core/src/utils/getImageId';
 import { segmentation as cstSegmentation, Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { getImageDataMetadata } from '@cornerstonejs/core/utilities';
 
+// Import marked for Markdown parsing
+import { marked } from 'marked';
+
 // Volume loader scheme
 const VOLUME_LOADER_SCHEME = 'cornerstoneStreamingImageVolume';
 
@@ -1137,6 +1140,47 @@ ${conversationText}
 
   return (
     <div className="flex flex-col items-center flex-grow text-white">
+      <style>
+        {`
+          /* 确保表格在对话框中正确显示 */
+          .chat-container table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+          }
+          .chat-container th, .chat-container td {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            text-align: left;
+          }
+          .chat-container th {
+            background-color: rgba(0, 0, 0, 0.2);
+          }
+          /* 确保链接在对话框中正确显示 */
+          .chat-container a {
+            color: #3b82f6;
+            text-decoration: underline;
+          }
+          /* 确保列表在对话框中正确显示 */
+          .chat-container ul, .chat-container ol {
+            margin: 10px 0;
+            padding-left: 20px;
+          }
+          /* 确保代码块在对话框中正确显示 */
+          .chat-container pre {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+          }
+          .chat-container code {
+            font-family: monospace;
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+          }
+        `}
+      </style>
       {session?.type === 'ai' || !session ? (
         <>
           <h2 className="mb-2 text-2xl font-bold">{t('WorkList:AI Assistant')}</h2>
@@ -1158,7 +1202,7 @@ ${conversationText}
 
       <div className="w-full max-w-2xl space-y-4">
         {/* Chat messages container */}
-        <div className="h-64 rounded-lg bg-gray-800 p-4 overflow-y-auto">
+        <div className="h-96 rounded-lg bg-gray-800 p-4 overflow-y-auto chat-container">
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="flex justify-center items-center h-full text-gray-500">
@@ -1176,7 +1220,7 @@ ${conversationText}
                   <div
                     className={`max-w-[80%] rounded-lg p-3 ${message.isUser ? 'bg-primary text-white' : 'bg-gray-700 text-white'}`}
                   >
-                    <div className="text-sm">{message.text}</div>
+                    <div className="text-base" dangerouslySetInnerHTML={{ __html: marked(message.text) }}></div>
                     <div className={`text-xs mt-1 ${message.isUser ? 'text-primary-100' : 'text-gray-400'}`}>
                       {message.timestamp}
                     </div>
