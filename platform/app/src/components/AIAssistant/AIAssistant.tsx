@@ -208,6 +208,87 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
     }
   };
 
+  // Call Doubao API for medication information
+  const CallDoubaoForMedicans = async (conversationHistory: Message[]) => {
+    try {
+      setIsLoading(true);
+
+      const apiKey = '7682bda6-1e7b-4096-b672-42a3b5453d17';
+      const apiUrl = 'https://ark.cn-beijing.volces.com/api/v3/chat/completions';
+
+      // Format conversation history for the API
+      const conversationText = conversationHistory.map(msg =>
+        `${msg.isUser ? '用户' : '助手'}: ${msg.text}`
+      ).join('\n');
+
+      const prompt = `请分析以下医疗对话，找出其中涉及的所有药物，并以JSON格式返回每种药物的详细信息。JSON应包含以下字段：
+
+1. id: 唯一标识符
+2. name: 药物名称
+3. dosage: 用法用量
+4. frequency: 用药频率
+5. duration: 用药疗程
+6. notes: 用药注意事项
+7. sideEffects: 副作用数组
+8. basicInfo: 药物基本信息
+9. basicFunction: 药物基本作用
+
+对话内容：
+${conversationText}
+
+请严格以JSON格式返回结果，不要包含任何其他文本。`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: 'doubao-seed-1-8-251228', // 豆包模型名称
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a medical AI assistant specialized in medication analysis. Please analyze the conversation and extract medication information accurately.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 2000
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[AIAssistant] 调用豆包API获取药物信息成功 - 响应数据:', data);
+      const answer = data.choices[0].message.content;
+
+      // Parse JSON response
+      try {
+        const medications = JSON.parse(answer);
+        return medications;
+      } catch (parseError) {
+        console.error('Error parsing medication JSON:', parseError);
+        return [];
+      }
+    }
+    catch (error)
+    {
+      console.error('Error calling Doubao API for medications:', error);
+      return [];
+    }
+     finally
+     {
+      setIsLoading(false);
+    }
+  };
+
   // Handle sending a message
   const handleSendMessage = async () => {
     if (!inputText.trim() || isLoading || !session) return;
@@ -843,7 +924,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   };
 
   // Extract medication recommendations from conversation
-  const handleExtractMedication = () => {
+  const handleExtractMedication = async () => {
     if (!session || !onExtractMedication) return;
 
     const now = new Date();
@@ -866,46 +947,45 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
       if (diagnosis !== '未明确诊断') break;
     }
 
-    // Extract medications from messages (simplified approach)
-    const medicationKeywords = ['药', '药物', '服用', '剂量', '用法', '用量'];
-    const extractedMedications: Medication[] = [];
+    // Call Doubao API to extract medication information
+    const extractedMedications = await CallDoubaoForMedicans(messages);
 
-    // Sample medications for demonstration
-    const sampleMedications: Medication[] = [
-      {
-        id: `med-${Date.now()}-1`,
-        name: '布洛芬缓释胶囊',
-        dosage: '300mg',
-        frequency: '每日2次',
-        duration: '7天',
-        notes: '饭后服用',
-        sideEffects: ['胃肠道不适', '头痛', '头晕']
-      },
-      {
-        id: `med-${Date.now()}-2`,
-        name: '盐酸氨基葡萄糖胶囊',
-        dosage: '500mg',
-        frequency: '每日3次',
-        duration: '30天',
-        notes: '随餐服用',
-        sideEffects: ['胃肠道不适', '皮疹', '嗜睡']
-      }
-    ];
-
-    // Check if any medication keywords are present in messages
-    let hasMedicationInfo = false;
-    for (const message of messages) {
-      for (const keyword of medicationKeywords) {
-        if (message.text.includes(keyword)) {
-          hasMedicationInfo = true;
-          break;
+    // Use sample medications if no medication info found from API
+    let medications: Medication[];
+    if (extractedMedications && extractedMedications.length > 0) {
+      // Convert API response to Medication type
+      medications = extractedMedications.map((med: any) => ({
+        id: med.id || `med-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        duration: med.duration,
+        notes: med.notes,
+        sideEffects: med.sideEffects || []
+      }));
+    } else {
+      // Sample medications for demonstration
+      medications = [
+        {
+          id: `med-${Date.now()}-1`,
+          name: '布洛芬缓释胶囊',
+          dosage: '300mg',
+          frequency: '每日2次',
+          duration: '7天',
+          notes: '饭后服用',
+          sideEffects: ['胃肠道不适', '头痛', '头晕']
+        },
+        {
+          id: `med-${Date.now()}-2`,
+          name: '盐酸氨基葡萄糖胶囊',
+          dosage: '500mg',
+          frequency: '每日3次',
+          duration: '30天',
+          notes: '随餐服用',
+          sideEffects: ['胃肠道不适', '皮疹', '嗜睡']
         }
-      }
-      if (hasMedicationInfo) break;
+      ];
     }
-
-    // Use sample medications if no medication info found in messages
-    const medications = hasMedicationInfo ? sampleMedications : sampleMedications;
 
     // Generate medication list
     const medicationList: MedicationList = {
@@ -924,7 +1004,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
 
   return (
     <div className="flex flex-col items-center flex-grow text-white">
-      {session?.type === 'ai' ? (
+      {session?.type === 'ai' || !session ? (
         <>
           <h2 className="mb-2 text-2xl font-bold">{t('WorkList:AI Assistant')}</h2>
           <p className="mb-6 text-center text-gray-400">{t('WorkList:Ask questions about medical images')}</p>
@@ -949,7 +1029,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
           <div className="space-y-4">
             {messages.length === 0 ? (
               <div className="flex justify-center items-center h-full text-gray-500">
-                {session?.type === 'ai' ?
+                {(session?.type === 'ai' || !session) ?
                   t('AIAssistant:No messages yet. Ask your first question!') :
                   `还没有与${session?.doctorName}医生的消息，开始对话吧！`
                 }
@@ -1019,11 +1099,11 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
         <div className="flex flex-col space-y-2">
           <textarea
             className="w-full h-40 rounded-lg bg-gray-800 p-4 text-white resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder={session?.type === 'ai' ? t('WorkList:Enter your question here...') : `向${session?.doctorName}医生提问...`}
+            placeholder={(session?.type === 'ai' || !session) ? t('WorkList:Enter your question here...') : `向${session?.doctorName}医生提问...`}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={isLoading}
+            disabled={isLoading || !session}
           />
           <div className="flex justify-between items-center">
             <div className="flex gap-2">
@@ -1067,7 +1147,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
               size={ButtonEnums.size.medium}
               onClick={handleSendMessage}
               startIcon={isLoading ? <Icons.LoadingSpinner /> : <Icons.ArrowRightBold />}
-              disabled={isLoading || !inputText.trim()}
+              disabled={isLoading || !inputText.trim() || !session}
             >
               {isLoading ? t('WorkList:Loading...') : t('WorkList:Send')}
             </Button>

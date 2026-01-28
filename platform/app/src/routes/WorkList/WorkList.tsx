@@ -240,14 +240,32 @@ function WorkList({
     if (savedSessions) {
       try {
         const parsedSessions = JSON.parse(savedSessions);
+        // Check if AI session exists
+        let aiSession = parsedSessions.find((s: Session) => s.type === 'ai');
+
+        if (!aiSession) {
+          // Create default AI session if not found
+          aiSession = {
+            id: 'ai-default',
+            type: 'ai',
+            messages: [],
+          };
+          parsedSessions.push(aiSession);
+        }
+
         setSessions(parsedSessions);
         // Set current session to AI session by default
-        const aiSession = parsedSessions.find((s: Session) => s.type === 'ai');
-        if (aiSession) {
-          setCurrentSession(aiSession);
-        }
+        setCurrentSession(aiSession);
       } catch (error) {
         console.error('Error parsing saved sessions:', error);
+        // Create default AI session on error
+        const defaultAISession: Session = {
+          id: 'ai-default',
+          type: 'ai',
+          messages: [],
+        };
+        setSessions([defaultAISession]);
+        setCurrentSession(defaultAISession);
       }
     } else {
       // Create default AI session if no sessions exist
