@@ -342,6 +342,31 @@ function WorkList({
     }
   }, []);
 
+  // Load reports and medication lists from localStorage on component mount
+  useEffect(() => {
+    // Load reports
+    const savedReports = getLocalStorage('medicalReports');
+    if (savedReports) {
+      try {
+        const parsedReports = JSON.parse(savedReports);
+        setReports(parsedReports);
+      } catch (error) {
+        console.error('Error parsing saved reports:', error);
+      }
+    }
+
+    // Load medication lists
+    const savedMedicationLists = getLocalStorage('medicationLists');
+    if (savedMedicationLists) {
+      try {
+        const parsedMedicationLists = JSON.parse(savedMedicationLists);
+        setMedicationLists(parsedMedicationLists);
+      } catch (error) {
+        console.error('Error parsing saved medication lists:', error);
+      }
+    }
+  }, []);
+
 
 
   // Save sessions to storage (cookie or localStorage) when sessions change
@@ -372,6 +397,20 @@ function WorkList({
       }
     }
   }, [sessions]);
+
+  // Save reports to localStorage when reports change
+  useEffect(() => {
+    if (reports.length > 0) {
+      setLocalStorage('medicalReports', JSON.stringify(reports));
+    }
+  }, [reports]);
+
+  // Save medication lists to localStorage when medication lists change
+  useEffect(() => {
+    if (medicationLists.length > 0) {
+      setLocalStorage('medicationLists', JSON.stringify(medicationLists));
+    }
+  }, [medicationLists]);
 
   // Handle doctor selection from DoctorList component
   const handleDoctorSelect = (doctor: Doctor) => {
