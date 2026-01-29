@@ -122,6 +122,10 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ session, onSessionUpdate, onG
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const volumeRef = useRef<any>(null);
   const volumeRenderingContainerRef = useRef<HTMLDivElement>(null);
+  // Camera control state
+  const [isDragging, setIsDragging] = useState(false);
+  const lastMousePosition = useRef({ x: 0, y: 0 });
+  const viewportRef = useRef<any>(null);
 
   // Update local messages when session changes
   useEffect(() => {
@@ -828,6 +832,97 @@ ${conversationText}
     volumeRef.current = null;
   };
 
+  // Mouse and touch event handlers for camera control
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    lastMousePosition.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !viewportRef.current) return;
+
+    const deltaX = e.clientX - lastMousePosition.current.x;
+    const deltaY = e.clientY - lastMousePosition.current.y;
+
+    // Rotate camera based on mouse movement
+    rotateCamera(deltaX, deltaY);
+
+    // Update last mouse position
+    lastMousePosition.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  // Touch event handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      lastMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !viewportRef.current || e.touches.length !== 1) return;
+
+    const deltaX = e.touches[0].clientX - lastMousePosition.current.x;
+    const deltaY = e.touches[0].clientY - lastMousePosition.current.y;
+
+    // Rotate camera based on touch movement
+    rotateCamera(deltaX, deltaY);
+
+    // Update last touch position
+    lastMousePosition.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  // Camera rotation function
+  const rotateCamera = (deltaX: number, deltaY: number) => {
+    if (!viewportRef.current) return;
+
+    // Check if viewport has camera control methods
+    if (viewportRef.current.rotateCamera) {
+      // Use built-in rotateCamera method if available
+      const rotationSpeed = 0.5;
+      viewportRef.current.rotateCamera(deltaX * rotationSpeed, deltaY * rotationSpeed);
+      viewportRef.current.render();
+    } else if (viewportRef.current.getCamera && viewportRef.current.setCamera) {
+      // Get current camera
+      const camera = viewportRef.current.getCamera();
+      if (!camera) return;
+
+      // Create a new camera with updated viewPlaneNormal and viewUp
+      // This is a simplified implementation using vector math
+      // For a more robust implementation, consider using a vector library
+
+      // Calculate rotation angles
+      const rotationSpeed = 0.01;
+      const rotationX = deltaY * rotationSpeed;
+      const rotationY = deltaX * rotationSpeed;
+
+      // Create rotation matrices or use quaternions for proper rotation
+      // This is a placeholder for the actual rotation logic
+
+      // For demonstration purposes, we'll just log the rotation values
+      console.log('Rotating camera by:', rotationX, rotationY);
+
+      // In a real implementation, you would update the camera's viewPlaneNormal and viewUp
+      // based on the rotation angles
+
+      // Set the updated camera
+      // viewportRef.current.setCamera(updatedCamera);
+      // viewportRef.current.render();
+    }
+  };
+
   // 组件卸载时清理资源
   useEffect(() => {
     return () => {
@@ -871,6 +966,8 @@ ${conversationText}
 
           // 获取视口
           const viewport = renderingEngine.getViewport(viewportId);
+          // 保存视口引用
+          viewportRef.current = viewport;
 
           console.log('[AIAssistant] 添加分割表示到视口...');
 
@@ -1344,7 +1441,15 @@ ${conversationText}
             <h3 className="text-lg font-semibold mb-2">体渲染结果</h3>
             <div
               ref={volumeRenderingContainerRef}
-              className="w-full h-64 rounded-lg bg-black"
+              className="w-full h-64 rounded-lg bg-black cursor-grab active:cursor-grabbing"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
             >
               {/* 3D视口将在这里渲染 */}
             </div>
