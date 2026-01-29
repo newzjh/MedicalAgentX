@@ -905,6 +905,34 @@ function WorkList({
     setSelectedMedicationList(null);
   };
 
+  // Handle report deletion
+  const handleDeleteReport = (reportId: string) => {
+
+    // If the deleted report is currently selected, close the dialog
+    if (selectedReport && selectedReport.id === reportId) {
+      handleCloseReportDialog();
+    }
+
+    // Remove report from state
+    setReports(prevReports => prevReports.filter(report => report.id !== reportId));
+    
+
+  };
+
+  // Handle medication list deletion
+  const handleDeleteMedicationList = (medicationListId: string) => {
+
+    // If the deleted medication list is currently selected, close the dialog
+    if (selectedMedicationList && selectedMedicationList.id === medicationListId) {
+      handleCloseMedicationDialog();
+    }
+
+    // Remove medication list from state
+    setMedicationLists(prevLists => prevLists.filter(list => list.id !== medicationListId));
+    
+
+  };
+
   const tableDataSource = sortedStudies.map((study, key) => {
     const rowKey = key + 1;
     const isExpanded = expandedRows.some(k => k === rowKey);
@@ -1379,6 +1407,18 @@ function WorkList({
                           <p><strong>报告状态:</strong> {report.content.reportStatus}</p>
                           <p><strong>结论:</strong> {report.content.conclusion}</p>
                         </div>
+                        <div className="flex justify-end mt-2">
+                          <button
+                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation(); // 阻止事件冒泡，避免触发报告详情
+                              handleDeleteReport(report.id);
+                            }}
+                            title="删除报告"
+                          >
+                            ×
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1415,6 +1455,18 @@ function WorkList({
                           {medicationList.medications.map(med => (
                             <p key={med.id}>- {med.name} ({med.dosage}, {med.frequency})</p>
                           ))}
+                        </div>
+                        <div className="flex justify-end mt-2">
+                          <button
+                            className="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation(); // 阻止事件冒泡，避免触发药单详情
+                              handleDeleteMedicationList(medicationList.id);
+                            }}
+                            title="删除药单"
+                          >
+                            ×
+                          </button>
                         </div>
                       </div>
                     ))}
